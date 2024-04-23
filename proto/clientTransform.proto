@@ -1,0 +1,89 @@
+syntax = "proto3";
+package proto;
+option go_package = "NekoImageWorkflowKitex/proto";
+
+enum ClientType {
+  LOCAL = 0;
+  API = 1;
+}
+
+// ClientInfo contain client identifier
+message ClientInfo {
+  string clientUUID = 1;
+  string clientName = 2;
+  ClientType clientType = 3;
+}
+
+// PreUploadFileData
+// ResourceUUID Used to uniquely identify the resource
+// ResourceUri Path to the local ClientImpl for the resource
+message PreUploadFileData{
+  string resourceUUID = 1;
+  string resourceUri = 2;
+}
+
+// UploadFileData
+// FileUUID Used to uniquely identify the uploaded file
+// FileContent Path to the local ClientImpl for the uploaded file
+message UploadFileData {
+  string fileUUID = 1;
+  bytes fileContent = 2;
+}
+
+// FilePreRequest perform first, if the same uuid exists it is not uploaded
+message FilePreRequest{
+  ClientInfo clientInfo = 1;
+  repeated PreUploadFileData data = 2;
+}
+
+// FilePostRequest upload the file content which server needs to store
+message FilePostRequest {
+  ClientInfo clientInfo = 1;
+  repeated UploadFileData data = 2;
+}
+
+enum ResponseStatusCode {
+  RESPONSE_OK = 0;
+  RESPONSE_FAILED = 1;
+}
+
+enum FilePreStatusCode {
+  FILE_PRE_EXISTS = 0;
+  FILE_PRE_NOT_EXIST = 1;
+  FILE_PRE_FAILED = 2;
+}
+
+enum FilePostStatusCode {
+  FILE_POST_SUCCESS = 0;
+  FILE_POST_FAILED = 1;
+}
+
+message FilePreStatusData{
+  string resourceUUID = 1;
+  FilePreStatusCode filePreUploadStatus = 2;
+}
+
+message FilePostStatusData {
+  string fileUUID = 1;
+  FilePostStatusCode filePostUploadStatus = 2;
+}
+
+message FilePreResponse{
+  ResponseStatusCode statusCode = 1;
+  repeated FilePreStatusData filePreUploadStatus = 2;
+  string message = 3;
+}
+
+message FilePostResponse {
+  ResponseStatusCode statusCode = 1;
+  repeated FilePostStatusData filePostUploadStatus = 2;
+  string message = 3;
+}
+
+service FileUploadService {
+  rpc HandleFilePreUpload (FilePreRequest) returns (FilePreResponse) {}
+  rpc HandleFilePostUpload (FilePostRequest) returns (FilePostResponse) {}
+}
+
+// cd uploadClient
+// kitex -type protobuf -module NekoImageWorkflowKitex -I ../proto --protobuf MclientTransform.proto=client/ ../proto/clientTransform.proto
