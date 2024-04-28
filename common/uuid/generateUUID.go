@@ -1,9 +1,10 @@
-package common
+// Package uuid rewrite https://github.com/hv0905/NekoImageGallery/blob/master/app/util/generate_uuid.py
+package uuid
 
 import (
 	"crypto/sha1"
-	"fmt"
 	"github.com/google/uuid"
+	"github.com/pk5ls20/NekoImageWorkflow/common/log"
 	"os"
 )
 
@@ -21,7 +22,7 @@ func generateUUID(data []byte) uuid.UUID {
 func GenerateFileUUID(filePath string) (uuid.UUID, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("failed to read file: %w", err)
+		return uuid.Nil, log.ErrorWrap(err)
 	}
 	return generateUUID(data), nil
 }

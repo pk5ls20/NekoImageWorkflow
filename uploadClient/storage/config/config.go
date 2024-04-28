@@ -1,9 +1,10 @@
-package storage
+package config
 
 import (
-	"NekoImageWorkflowKitex/common"
-	"NekoImageWorkflowKitex/uploadClient/model"
-	"errors"
+	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/model"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
@@ -13,33 +14,28 @@ import (
 )
 
 var configPath string
+var loadConfigOnce sync.Once
+var configImpl *model.ClientConfig
 var configFileName = "NekoImageWorkflowClientConfig"
 var configFileNameWithExtension = "NekoImageWorkflowClientConfig.json"
-var loadConfigOnce sync.Once
-var inCacheConfig *model.ClientConfig
 
 func loadConfig(info *model.ClientConfig) error {
 	var config model.ConfigWrapper
-	exe, err := os.Executable()
-	configPath = filepath.Dir(exe)
-	if err != nil {
-		logrus.Error("Error getting current directory: %s\n", err)
-		return err
+	exe, exeErr := os.Executable()
+	if exeErr != nil {
+		return log.ErrorWrap(exeErr)
 	}
-	if _, err := os.Stat(filepath.Join(configPath, configFileNameWithExtension)); os.IsNotExist(err) {
+	configPath = filepath.Dir(exe)
+	if _, fileErr := os.Stat(filepath.Join(configPath, configFileNameWithExtension)); os.IsNotExist(fileErr) {
 		CreateConfig()
 	} else {
 		viper.SetConfigName(configFileName)
 		viper.AddConfigPath(configPath)
-		err := viper.ReadInConfig()
-		if err != nil {
-			logrus.Error("Error reading config file, ", err)
-			return err
+		if err := viper.ReadInConfig(); err != nil {
+			return log.ErrorWrap(err)
 		}
-		err = viper.Unmarshal(&config)
-		if err != nil {
-			logrus.Error("Error unmarshalling config file, ", err)
-			return err
+		if err := viper.Unmarshal(&config); err != nil {
+			return log.ErrorWrap(err)
 		}
 		*info = config.ClientConfig
 	}
@@ -59,23 +55,27 @@ func CreateConfig() {
 		ClientRegisterAddress: "https://example.com/register",
 		ConsulAddress:         "https://example-consul.com",
 		PostUploadPeriod:      300,
-		ScraperList:           []common.ScraperType{common.LocalScraperType, common.APIScraperType},
-		ScraperConfig: model.ScraperConfig{
-			LocalScraperConfig: model.LocalScraperConfig{
-				WatchFolders: []string{"/path/to/watch/folder1", "/path/to/watch/folder2"},
+		ScraperInstance: map[commonModel.ScraperType][]model.ScraperInstance{
+			commonModel.LocalScraperType: {
+				model.LocalScraperConfig{
+					Enable:       true,
+					WatchFolders: []string{"/path/to/watch/folder1", "/path/to/watch/folder2"},
+				},
 			},
-			APIScraperConfig: model.APIScraperConfig{
-				APIScraperSource: []model.APIScraperSourceConfig{
-					{
-						APIAddress:           "https://example.com/api",
-						ParserJavaScriptFile: "example-parser.js",
+			commonModel.APIScraperType: {
+				model.APIScraperConfig{
+					Enable: true,
+					APIScraperSource: []model.APIScraperSourceConfig{
+						{
+							APIAddress:           "https://example-api.com",
+							ParserJavaScriptFile: "example-parser.js",
+						},
 					},
 				},
 			},
 		},
 	})
-	err := viper.SafeWriteConfig()
-	if err != nil {
+	if err := viper.SafeWriteConfig(); err != nil {
 		var configFileAlreadyExistsError viper.ConfigFileAlreadyExistsError
 		if errors.As(err, &configFileAlreadyExistsError) {
 			logrus.Error("In CreateConfig(), Config file already exists.")
@@ -91,12 +91,10 @@ func CreateConfig() {
 func GetConfig() *model.ClientConfig {
 	loadConfigOnce.Do(func() {
 		var config model.ClientConfig
-		err := loadConfig(&config)
-		if err != nil {
-			inCacheConfig = &model.ClientConfig{}
-		} else {
-			inCacheConfig = &config
+		if err := loadConfig(&config); err != nil {
+			logrus.Fatal("Failed to load config:", err)
 		}
+		configImpl = &config
 	})
-	return inCacheConfig
+	return configImpl
 }

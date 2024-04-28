@@ -1,6 +1,6 @@
 syntax = "proto3";
-package proto;
-option go_package = "NekoImageWorkflowKitex/proto";
+package protoFile;
+option go_package = "protoFile";
 
 enum ClientType {
   LOCAL = 0;
@@ -86,4 +86,4 @@ service FileUploadService {
 }
 
 // cd uploadClient
-// kitex -type protobuf -module NekoImageWorkflowKitex -I ../proto --protobuf MclientTransform.proto=client/ ../proto/clientTransform.proto
+// kitex -type protobuf -module github.com/pk5ls20/NekoImageWorkflow/uploadClient -I ../protoFile ../protoFile/clientTransform.proto

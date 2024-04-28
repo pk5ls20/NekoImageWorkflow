@@ -2,35 +2,47 @@
 package model
 
 import (
-	"NekoImageWorkflowKitex/common"
 	"github.com/google/uuid"
+	"github.com/pk5ls20/NekoImageWorkflow/common/model"
 )
 
-// PreUploadFileData
+// BaseDataModel Requires specific transport DataModel (just below) implementation
+type BaseDataModel interface {
+}
+
+// ScraperPreUploadFileDataModel
 // ResourceUUID Used to uniquely identify the resource
 // ResourceUri Path to the local ClientImpl for the resource
-type PreUploadFileData struct {
+type ScraperPreUploadFileDataModel struct {
+	BaseDataModel
 	ResourceUUID uuid.UUID
 	ResourceUri  string
 }
 
-// UploadFileData
+// ScraperPostUploadFileDataModel
 // FileUUID Used to uniquely identify the uploaded file
 // FileContent Path to the local ClientImpl for the uploaded file
-type UploadFileData struct {
+type ScraperPostUploadFileDataModel struct {
+	BaseDataModel
 	FileUUID    uuid.UUID
 	FileContent []byte
 }
 
-// PreTransformDataModel is the model for pre-transform data,
-// if FileUUID in server, then don't upload
+// PreTransformDataModel is the model for pre-transform data
 type PreTransformDataModel struct {
-	common.ScraperType
-	PreUploadFileData []*PreUploadFileData
+	BaseDataModel
+	ScraperType       model.ScraperType
+	PreUploadFileData []*ScraperPreUploadFileDataModel
 }
 
 // PostTransformDataModel is the actual upload file data
 type PostTransformDataModel struct {
-	common.ScraperType
-	PostUploadFileData []*UploadFileData
+	BaseDataModel
+	ScraperType        model.ScraperType
+	PostUploadFileData []*ScraperPostUploadFileDataModel
+}
+
+// AnyDataModel used to limit the total number of total types that have BaseDataModel
+type AnyDataModel interface {
+	ScraperPreUploadFileDataModel | ScraperPostUploadFileDataModel | PreTransformDataModel | PostTransformDataModel
 }

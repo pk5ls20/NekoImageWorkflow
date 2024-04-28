@@ -1,12 +1,14 @@
 package local
 
 import (
-	"NekoImageWorkflowKitex/common"
-	"NekoImageWorkflowKitex/uploadClient/model"
-	"NekoImageWorkflowKitex/uploadClient/scraper"
-	"NekoImageWorkflowKitex/uploadClient/storage"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
+	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
+	"github.com/pk5ls20/NekoImageWorkflow/common/uuid"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/model"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/bridge"
 	"github.com/sirupsen/logrus"
 	"io/fs"
 	"path/filepath"
@@ -14,39 +16,39 @@ import (
 
 type LocalScraperInstance struct {
 	scraper.ScraperInstance
+	InsConfig model.LocalScraperConfig
 }
 
-func walkDir(rootPath string) ([]string, error) {
-	var dirs []string
+func walkDir(rootPath string) (*[]string, error) {
+	dirs := make([]string, 0)
 	dirs = append(dirs, rootPath)
-	err := filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
+	walkDirErr := filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			return log.ErrorWrap(err)
 		}
 		if d.IsDir() {
 			dirs = append(dirs, path)
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, err
+	if walkDirErr != nil {
+		return nil, log.ErrorWrap(walkDirErr)
 	}
-	return dirs, nil
+	return &dirs, nil
 }
 
 func (c *LocalScraperInstance) PrepareData() error {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		logrus.Fatal(err)
+	watcher, watcherErr := fsnotify.NewWatcher()
+	if watcherErr != nil {
+		return log.ErrorWrap(watcherErr)
 	}
 	defer func(watcher *fsnotify.Watcher) {
-		err := watcher.Close()
-		if err != nil {
-			logrus.Fatal(err)
+		if err_ := watcher.Close(); err_ != nil {
+			logrus.Error(err_)
 		}
 	}(watcher)
 	go func() {
-		preUploadBridgeIns := storage.GetPreUploadTransBridgeInstance()
+		preUploadBridgeIns := bridge.GetPreUploadTransBridgeInstance()
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -56,39 +58,38 @@ func (c *LocalScraperInstance) PrepareData() error {
 				logrus.Debug("event:", event)
 				if event.Has(fsnotify.Create) {
 					logrus.Debug("create file:", event.Name)
-					uuid, _ := common.GenerateFileUUID(event.Name)
-					tmpSlice := []model.PreUploadFileData{{ResourceUUID: uuid, ResourceUri: event.Name}}
-					err := preUploadBridgeIns.Insert(tmpSlice)
-					if err != nil {
-						logrus.Error("Failed to insert file into preUploadBridgeIns:", err)
+					uuid, _ := uuid.GenerateFileUUID(event.Name)
+					tmpSlice := []*model.ScraperPreUploadFileDataModel{{ResourceUUID: uuid, ResourceUri: event.Name}}
+					if err_ := preUploadBridgeIns.Insert(tmpSlice); err_ != nil {
+						logrus.Error("Failed to insert file into preUploadBridgeIns:", err_)
 					}
 				}
-			case err, ok := <-watcher.Errors:
+			case err_, ok := <-watcher.Errors:
 				if !ok {
+					logrus.Error("watcher.Errors not ok")
 					return
 				}
-				logrus.Fatal("error:", err)
+				logrus.Error("error:", err_)
 			}
 		}
 	}()
-	config := storage.GetConfig()
 	allRecursiveDirs := make([]string, 0)
-	for _, dir := range config.ScraperConfig.LocalScraperConfig.WatchFolders {
-		recursiveDirs, _ := walkDir(dir)
-		allRecursiveDirs = append(allRecursiveDirs, recursiveDirs...)
+	for _, dir := range c.InsConfig.WatchFolders {
+		recursiveDirs, err := walkDir(dir)
+		if err != nil {
+			logrus.Error(err)
+			continue
+		}
+		allRecursiveDirs = append(allRecursiveDirs, *recursiveDirs...)
 	}
 	for _, dir := range allRecursiveDirs {
-		err = watcher.Add(dir)
-		if err != nil {
-			logrus.Fatal(err)
+		if err := watcher.Add(dir); err != nil {
+			logrus.Error(err)
 		}
-	}
-	if err != nil {
-		logrus.Fatal(err)
 	}
 	logrus.Info(
 		fmt.Sprintf("Successfully started watching %d folders under %s",
-			len(allRecursiveDirs), config.ScraperConfig.LocalScraperConfig.WatchFolders),
+			len(allRecursiveDirs), c.InsConfig.WatchFolders),
 	)
 	// Block main goroutine forever.
 	<-make(chan struct{})
@@ -98,4 +99,8 @@ func (c *LocalScraperInstance) PrepareData() error {
 func (c *LocalScraperInstance) ProcessData() error {
 	// TODO: make it really work
 	return nil
+}
+
+func (c *LocalScraperInstance) GetType() commonModel.ScraperType {
+	return commonModel.LocalScraperType
 }

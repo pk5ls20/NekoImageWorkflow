@@ -2,12 +2,12 @@
 package fileuploadservice
 
 import (
-	uploadClient "NekoImageWorkflowKitex/uploadClient/kitex_gen/uploadClient"
 	server "github.com/cloudwego/kitex/server"
+	protoFile "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile"
 )
 
 // NewServer creates a server.Server with the given handler and options.
-func NewServer(handler uploadClient.FileUploadService, opts ...server.Option) server.Server {
+func NewServer(handler protoFile.FileUploadService, opts ...server.Option) server.Server {
 	var options []server.Option
 
 	options = append(options, opts...)
@@ -19,6 +19,6 @@ func NewServer(handler uploadClient.FileUploadService, opts ...server.Option) se
 	return svr
 }
 
-func RegisterService(svr server.Server, handler uploadClient.FileUploadService, opts ...server.RegisterOption) error {
+func RegisterService(svr server.Server, handler protoFile.FileUploadService, opts ...server.RegisterOption) error {
 	return svr.RegisterService(serviceInfo(), handler, opts...)
 }

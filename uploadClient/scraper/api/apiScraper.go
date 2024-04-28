@@ -1,12 +1,14 @@
 package api
 
 import (
-	"NekoImageWorkflowKitex/common"
-	"NekoImageWorkflowKitex/uploadClient/scraper"
+	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/model"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper"
 )
 
 type APIScraperInstance struct {
 	scraper.ScraperInstance
+	InsConfig model.APIScraperConfig
 }
 
 func (c *APIScraperInstance) PrepareData() error {
@@ -19,6 +21,6 @@ func (c *APIScraperInstance) ProcessData() error {
 	return nil
 }
 
-func (c *APIScraperInstance) GetType() common.ScraperType {
-	return common.APIScraperType
+func (c *APIScraperInstance) GetType() commonModel.ScraperType {
+	return commonModel.APIScraperType
 }

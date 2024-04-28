@@ -1,6 +1,8 @@
 package scraper
 
-import "NekoImageWorkflowKitex/common"
+import (
+	commomModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
+)
 
 type Scraper interface {
 	// PrepareData prepare raw data, designed to be run in a goroutine once
@@ -11,5 +13,5 @@ type Scraper interface {
 
 type ScraperInstance interface {
 	Scraper
-	GetType() common.ScraperType
+	GetType() commomModel.ScraperType
 }

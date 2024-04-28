@@ -1,12 +1,14 @@
-package impl
+package client
 
 import (
-	"NekoImageWorkflowKitex/uploadClient/kitex_gen/uploadClient"
-	"NekoImageWorkflowKitex/uploadClient/kitex_gen/uploadClient/fileuploadservice"
-	"NekoImageWorkflowKitex/uploadClient/model"
-	"NekoImageWorkflowKitex/uploadClient/scraper"
-	"NekoImageWorkflowKitex/uploadClient/storage"
 	"context"
+	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	uploadClient "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile/fileuploadservice"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/model"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/bridge"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,16 +28,16 @@ type ClientImpl interface {
 type ClientInstance struct {
 	ClientImpl
 	ClientInfo        *model.ClientConfig
-	Scrapers          *[]scraper.ScraperInstance
-	PreUploadBridge   *storage.PreUploadTransBridgeInstance
-	UploadTransBridge *storage.UploadTransBridgeInstance
+	Scrapers          []scraper.ScraperInstance
+	PreUploadBridge   *bridge.PreUploadTransBridgeInstance
+	UploadTransBridge *bridge.UploadTransBridgeInstance
 }
 
 // OnInit load client self config and before data, then init Scrapers
 func (ci *ClientInstance) OnInit() error {
 	// init
 	logrus.Debug("ClientInstance OnInit start")
-	ci.ClientInfo = storage.GetConfig()
+	ci.ClientInfo = config.GetConfig()
 	return nil
 }
 
@@ -51,9 +53,8 @@ func (ci *ClientInstance) HandleFilePreUpload(ctx context.Context, cli fileuploa
 	// TODO: make it really work
 	logrus.Debug("ClientInstance PreUpload start")
 	req := &uploadClient.FilePreRequest{}
-	_, err := cli.HandleFilePreUpload(ctx, req)
-	if err != nil {
-		return err
+	if _, err := cli.HandleFilePreUpload(ctx, req); err != nil {
+		return log.ErrorWrap(err)
 	}
 	return nil
 }
@@ -63,9 +64,8 @@ func (ci *ClientInstance) HandleFilePostUpload(ctx context.Context, cli fileuplo
 	// TODO: make it really work
 	logrus.Debug("ClientInstance PostUpload start")
 	req := &uploadClient.FilePostRequest{}
-	_, err := cli.HandleFilePostUpload(ctx, req)
-	if err != nil {
-		return err
+	if _, err := cli.HandleFilePostUpload(ctx, req); err != nil {
+		return log.ErrorWrap(err)
 	}
 	return nil
 }
