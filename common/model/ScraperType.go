@@ -19,6 +19,6 @@ func ParseScraperType(s string) (ScraperType, error) {
 	case string(APIScraperType):
 		return APIScraperType, nil
 	default:
-		return "", log.ErrorWrap(errors.New("invalid ScraperType"))
+		return "", log.ErrorWrap(errors.New("invalid scraperType"))
 	}
 }

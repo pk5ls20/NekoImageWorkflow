@@ -1,4 +1,4 @@
-package scraper
+package impl
 
 import (
 	commomModel "github.com/pk5ls20/NekoImageWorkflow/common/model"

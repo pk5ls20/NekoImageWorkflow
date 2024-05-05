@@ -1,4 +1,4 @@
-package model
+package config
 
 import (
 	"github.com/pk5ls20/NekoImageWorkflow/common/model"

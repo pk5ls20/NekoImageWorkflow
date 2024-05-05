@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/model"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	"github.com/smallnest/chanx"
 	"sync"
 )
 
-type fileTransBridge[T model.AnyDataModel] interface {
+type fileTransBridge[T clientModel.BaseBridgeDataModel] interface {
 	Length() int
 	Insert(val []*T) error
 	Pop(number int) ([]*T, error)
@@ -17,7 +17,7 @@ type fileTransBridge[T model.AnyDataModel] interface {
 	closeInputChannel() error
 }
 
-type baseFileTransBridgeInstance[T model.AnyDataModel] struct {
+type baseFileTransBridgeInstance[T clientModel.BaseBridgeDataModel] struct {
 	channel *chanx.UnboundedChan[*T]
 	fileTransBridge[T]
 }
@@ -81,38 +81,74 @@ func (c *baseFileTransBridgeInstance[T]) closeInputChannel() (err error) {
 }
 
 type PreUploadTransBridgeInstance struct {
-	baseFileTransBridgeInstance[model.ScraperPreUploadFileDataModel]
+	baseFileTransBridgeInstance[clientModel.ScraperPreUploadFileDataModel]
 }
 
-type UploadTransBridgeInstance struct {
-	baseFileTransBridgeInstance[model.ScraperPostUploadFileDataModel]
+type PostUploadTransBridgeInstance struct {
+	baseFileTransBridgeInstance[clientModel.ScraperPostUploadFileDataModel]
 }
 
-var preUploadInstance *PreUploadTransBridgeInstance
-var preUploadOnce sync.Once
-var uploadInstance *UploadTransBridgeInstance
-var uploadOnce sync.Once
+type PreTransformTransBridgeInstance struct {
+	baseFileTransBridgeInstance[clientModel.PreTransformDataModel]
+}
+
+type PostTransformTransBridgeInstance struct {
+	baseFileTransBridgeInstance[clientModel.PostTransformDataModel]
+}
+
+var (
+	scraperPreUploadInstance  *PreUploadTransBridgeInstance
+	scraperPreUploadOnce      sync.Once
+	scraperPostUploadInstance *PostUploadTransBridgeInstance
+	scraperPostUploadOnce     sync.Once
+	preTransformInstance      *PreTransformTransBridgeInstance
+	preTransformOnce          sync.Once
+	postTransformInstance     *PostTransformTransBridgeInstance
+	postTransformOnce         sync.Once
+)
 
 const initCap = 100
 
 func GetPreUploadTransBridgeInstance() *PreUploadTransBridgeInstance {
-	preUploadOnce.Do(func() {
-		preUploadInstance = &PreUploadTransBridgeInstance{
-			baseFileTransBridgeInstance: baseFileTransBridgeInstance[model.ScraperPreUploadFileDataModel]{
-				channel: chanx.NewUnboundedChan[*model.ScraperPreUploadFileDataModel](context.Background(), initCap),
+	scraperPreUploadOnce.Do(func() {
+		scraperPreUploadInstance = &PreUploadTransBridgeInstance{
+			baseFileTransBridgeInstance: baseFileTransBridgeInstance[clientModel.ScraperPreUploadFileDataModel]{
+				channel: chanx.NewUnboundedChan[*clientModel.ScraperPreUploadFileDataModel](context.Background(), initCap),
 			},
 		}
 	})
-	return preUploadInstance
+	return scraperPreUploadInstance
 }
 
-func GetUploadTransBridgeInstance() *UploadTransBridgeInstance {
-	uploadOnce.Do(func() {
-		uploadInstance = &UploadTransBridgeInstance{
-			baseFileTransBridgeInstance: baseFileTransBridgeInstance[model.ScraperPostUploadFileDataModel]{
-				channel: chanx.NewUnboundedChan[*model.ScraperPostUploadFileDataModel](context.Background(), initCap),
+func GetUploadTransBridgeInstance() *PostUploadTransBridgeInstance {
+	scraperPostUploadOnce.Do(func() {
+		scraperPostUploadInstance = &PostUploadTransBridgeInstance{
+			baseFileTransBridgeInstance: baseFileTransBridgeInstance[clientModel.ScraperPostUploadFileDataModel]{
+				channel: chanx.NewUnboundedChan[*clientModel.ScraperPostUploadFileDataModel](context.Background(), initCap),
 			},
 		}
 	})
-	return uploadInstance
+	return scraperPostUploadInstance
+}
+
+func GetPreTransformTransBridgeInstance() *PreTransformTransBridgeInstance {
+	preTransformOnce.Do(func() {
+		preTransformInstance = &PreTransformTransBridgeInstance{
+			baseFileTransBridgeInstance: baseFileTransBridgeInstance[clientModel.PreTransformDataModel]{
+				channel: chanx.NewUnboundedChan[*clientModel.PreTransformDataModel](context.Background(), initCap),
+			},
+		}
+	})
+	return preTransformInstance
+}
+
+func GetPostTransformTransBridgeInstance() *PostTransformTransBridgeInstance {
+	postTransformOnce.Do(func() {
+		postTransformInstance = &PostTransformTransBridgeInstance{
+			baseFileTransBridgeInstance: baseFileTransBridgeInstance[clientModel.PostTransformDataModel]{
+				channel: chanx.NewUnboundedChan[*clientModel.PostTransformDataModel](context.Background(), initCap),
+			},
+		}
+	})
+	return postTransformInstance
 }

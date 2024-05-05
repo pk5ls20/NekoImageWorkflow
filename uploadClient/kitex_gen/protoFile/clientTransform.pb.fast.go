@@ -939,12 +939,12 @@ var fieldIDToName_ClientInfo = map[int32]string{
 }
 
 var fieldIDToName_PreUploadFileData = map[int32]string{
-	1: "ResourceUUID",
-	2: "ResourceUri",
+	1: "resourceUUID",
+	2: "resourceUri",
 }
 
 var fieldIDToName_UploadFileData = map[int32]string{
-	1: "FileUUID",
+	1: "fileUUID",
 	2: "FileContent",
 }
 
@@ -959,12 +959,12 @@ var fieldIDToName_FilePostRequest = map[int32]string{
 }
 
 var fieldIDToName_FilePreStatusData = map[int32]string{
-	1: "ResourceUUID",
+	1: "resourceUUID",
 	2: "FilePreUploadStatus",
 }
 
 var fieldIDToName_FilePostStatusData = map[int32]string{
-	1: "FileUUID",
+	1: "fileUUID",
 	2: "FilePostUploadStatus",
 }
 

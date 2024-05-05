@@ -3,7 +3,6 @@ package config
 import (
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/model"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -15,12 +14,12 @@ import (
 
 var configPath string
 var loadConfigOnce sync.Once
-var configImpl *model.ClientConfig
+var configImpl *ClientConfig
 var configFileName = "NekoImageWorkflowClientConfig"
 var configFileNameWithExtension = "NekoImageWorkflowClientConfig.json"
 
-func loadConfig(info *model.ClientConfig) error {
-	var config model.ConfigWrapper
+func loadConfig(info *ClientConfig) error {
+	var config ConfigWrapper
 	exe, exeErr := os.Executable()
 	if exeErr != nil {
 		return log.ErrorWrap(exeErr)
@@ -48,24 +47,24 @@ func CreateConfig() {
 	viper.AddConfigPath(configPath)
 	viper.SetConfigType("json")
 	// TODO: update the outdated config fit for the new code in main.go
-	viper.Set("ClientConfig", model.ClientConfig{
+	viper.Set("ClientConfig", ClientConfig{
 		ClientID:              "example-id",
 		ClientName:            "example-name",
 		DestServiceName:       "example-service",
 		ClientRegisterAddress: "https://example.com/register",
 		ConsulAddress:         "https://example-consul.com",
 		PostUploadPeriod:      300,
-		ScraperInstance: map[commonModel.ScraperType][]model.ScraperInstance{
+		ScraperInstance: map[commonModel.ScraperType][]ScraperInstance{
 			commonModel.LocalScraperType: {
-				model.LocalScraperConfig{
+				LocalScraperConfig{
 					Enable:       true,
 					WatchFolders: []string{"/path/to/watch/folder1", "/path/to/watch/folder2"},
 				},
 			},
 			commonModel.APIScraperType: {
-				model.APIScraperConfig{
+				APIScraperConfig{
 					Enable: true,
-					APIScraperSource: []model.APIScraperSourceConfig{
+					APIScraperSource: []APIScraperSourceConfig{
 						{
 							APIAddress:           "https://example-api.com",
 							ParserJavaScriptFile: "example-parser.js",
@@ -88,9 +87,9 @@ func CreateConfig() {
 	}
 }
 
-func GetConfig() *model.ClientConfig {
+func GetConfig() *ClientConfig {
 	loadConfigOnce.Do(func() {
-		var config model.ClientConfig
+		var config ClientConfig
 		if err := loadConfig(&config); err != nil {
 			logrus.Fatal("Failed to load config:", err)
 		}

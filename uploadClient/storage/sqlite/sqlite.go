@@ -2,13 +2,14 @@ package sqlite
 
 import (
 	"fmt"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/model"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/bridge"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 )
 
@@ -41,7 +42,7 @@ func InitSqlite() {
 			logrus.Fatal(err)
 		}
 		// 2. load data into builtin channel
-		receiveData, err := FindDbDataModelByTag(DbDataTag)
+		receiveData, err := FindDbDataModelByTag(BridgeDataTag)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -49,13 +50,13 @@ func InitSqlite() {
 		for i, data := range receiveData {
 			tmpBytes[i] = data.Data
 		}
-		decodedReceiveData, err := decodeDataBatch(tmpBytes)
+		decodedReceiveData, err := decodeDataBatch[model.BridgeDataModel](tmpBytes)
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		receiveDataToBridge(decodedReceiveData)
+		receiveDataToBridge[model.BridgeDataModel](decodedReceiveData)
 		// 3. delete data from sqlite
-		if err_ := DeleteDbDataByTag(DbDataTag); err_ != nil {
+		if err_ := DeleteDbDataByTag(BridgeDataTag); err_ != nil {
 			logrus.Fatal(err_)
 		}
 	})
@@ -65,13 +66,14 @@ func InitSqlite() {
 // CloseSqlite Securely close the database and write the contents of fileTransBridge
 func CloseSqlite() {
 	if dbInstance != nil {
+		// TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
 		// 1. write builtin channel data to database
 		preUploadBridgeChannel := bridge.GetPreUploadTransBridgeInstance()
 		if preUploadBridgeChannel != nil {
 			tmpData, _ := preUploadBridgeChannel.PopAll()
-			tmpDBData := make([]*dbData, len(tmpData))
+			tmpDBData := make([]*dbData[model.BridgeDataModel], len(tmpData))
 			for i, data := range tmpData {
-				tmpDBData[i] = &dbData{Tag: DbDataTag, Data: data}
+				tmpDBData[i] = &dbData[model.BridgeDataModel]{Tag: BridgeDataTag, Data: data}
 			}
 			if err := InsertBatchDbData(tmpDBData); err != nil {
 				logrus.Error(err)
@@ -80,9 +82,9 @@ func CloseSqlite() {
 		postUploadBridgeChannel := bridge.GetUploadTransBridgeInstance()
 		if postUploadBridgeChannel != nil {
 			tmpData, _ := postUploadBridgeChannel.PopAll()
-			tmpDBData := make([]*dbData, len(tmpData))
+			tmpDBData := make([]*dbData[model.BridgeDataModel], len(tmpData))
 			for i, data := range tmpData {
-				tmpDBData[i] = &dbData{Tag: DbDataTag, Data: data}
+				tmpDBData[i] = &dbData[model.BridgeDataModel]{Tag: BridgeDataTag, Data: data}
 			}
 			if err := InsertBatchDbData(tmpDBData); err != nil {
 				logrus.Error(err)
@@ -91,23 +93,24 @@ func CloseSqlite() {
 	}
 }
 
-func receiveDataToBridge(data []*dbData) {
+func receiveDataToBridge[T model.BridgeDataModel](data []*dbData[T]) {
 	ia := bridge.GetPreUploadTransBridgeInstance()
 	ib := bridge.GetUploadTransBridgeInstance()
 	iaList := make([]*model.ScraperPreUploadFileDataModel, 0)
 	ibList := make([]*model.ScraperPostUploadFileDataModel, 0)
 	for _, d := range data {
-		switch v := d.Data.(type) {
-		case *model.ScraperPreUploadFileDataModel:
-			iaList = append(iaList, v)
-		case *model.ScraperPostUploadFileDataModel:
-			ibList = append(ibList, v)
-		case *model.PreTransformDataModel:
+		v := reflect.ValueOf(d.Data)
+		switch v.Elem().Interface().(type) {
+		case model.ScraperPreUploadFileDataModel:
+			iaList = append(iaList, v.Interface().(*model.ScraperPreUploadFileDataModel))
+		case model.ScraperPostUploadFileDataModel:
+			ibList = append(ibList, v.Interface().(*model.ScraperPostUploadFileDataModel))
+		case model.PreTransformDataModel:
 			logrus.Warning("Wait to implement")
-		case *model.PostTransformDataModel:
+		case model.PostTransformDataModel:
 			logrus.Warning("Wait to implement")
 		default:
-			logrus.Error(fmt.Sprintf("Unknown type: %T", v))
+			logrus.Error(fmt.Sprintf("Unknown type: %s", v.Elem().Type().Name()))
 		}
 	}
 	if len(iaList) > 0 {

@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/gob"
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/model"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 )
 
 func init() {
+	// TODO: auto register, or add more!
 	gob.Register(&model.ScraperPreUploadFileDataModel{})
 	gob.Register(&model.ScraperPostUploadFileDataModel{})
 	gob.Register(&model.PreTransformDataModel{})
@@ -15,23 +16,23 @@ func init() {
 }
 
 // decodeData decodes the byte slice into a dbData
-func decodeData(data []byte) (*dbData, error) {
+func decodeData[T dbDataModel](data []byte) (*dbData[T], error) {
 	buffer := bytes.NewReader(data)
 	dataDecoder := gob.NewDecoder(buffer)
-	var result dbData
+	var result dbData[T]
 	if err := dataDecoder.Decode(&result); err != nil {
-		return &dbData{}, log.ErrorWrap(err)
+		return &dbData[T]{}, log.ErrorWrap(err)
 	}
 	return &result, nil
 }
 
 // decodeDataBatch decodes a slice of byte slices into a slice of dbData
-func decodeDataBatch(data [][]byte) ([]*dbData, error) {
-	var results []*dbData
+func decodeDataBatch[T dbDataModel](data [][]byte) ([]*dbData[T], error) {
+	var results []*dbData[T]
 	for _, d := range data {
 		buffer := bytes.NewReader(d)
 		dataDecoder := gob.NewDecoder(buffer)
-		result := dbData{}
+		result := dbData[T]{}
 		if err := dataDecoder.Decode(&result); err != nil {
 			return nil, log.ErrorWrap(err)
 		}

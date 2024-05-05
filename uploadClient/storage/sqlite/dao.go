@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func InsertDbData(data *dbData) error {
+func InsertDbData[T dbDataModel](data *dbData[T]) error {
 	if err := checkDBInstance(); err != nil {
 		return log.ErrorWrap(err)
 	}
@@ -27,7 +27,7 @@ func InsertDbData(data *dbData) error {
 	return nil
 }
 
-func InsertBatchDbData(data []*dbData) error {
+func InsertBatchDbData[T dbDataModel](data []*dbData[T]) error {
 	if err := checkDBInstance(); err != nil {
 		return log.ErrorWrap(err)
 	}
@@ -46,7 +46,6 @@ func InsertBatchDbData(data []*dbData) error {
 			Data: encodedData,
 		})
 	}
-
 	result := dbInstance.Create(&tmpData)
 	if result.Error != nil {
 		return log.ErrorWrap(result.Error)
