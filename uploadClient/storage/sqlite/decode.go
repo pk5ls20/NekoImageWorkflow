@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"encoding/gob"
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 )
 
 func init() {
 	// TODO: auto register, or add more!
-	gob.Register(&model.ScraperPreUploadFileDataModel{})
-	gob.Register(&model.ScraperPostUploadFileDataModel{})
-	gob.Register(&model.PreTransformDataModel{})
-	gob.Register(&model.PostTransformDataModel{})
+	gob.Register(&clientModel.PreUploadFileDataModel{})
+	gob.Register(&clientModel.UploadFileDataModel{})
 }
 
 // decodeData decodes the byte slice into a dbData

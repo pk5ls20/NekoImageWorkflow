@@ -14,7 +14,7 @@ type Spider interface {
 	Init(fetchList []string, config *SpiderConfig) error
 	Start() error
 	WaitDone() ([]*SpiderTask, error)
-	httpRequest(task *SpiderTask) error
+	httpRequest(task *SpiderTask)
 }
 
 type SpiderConfig struct {

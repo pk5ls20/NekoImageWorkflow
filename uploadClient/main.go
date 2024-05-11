@@ -7,10 +7,9 @@ import (
 	_ "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	clientImpl "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/impl"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile/fileuploadservice"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/impl"
-	ScraperLifeCycle "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/lifecycle"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/bridge"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -37,20 +36,18 @@ func RegisterSignalHandle() {
 func main() {
 	// 1. init clientImpl
 	clientEntry = clientImpl.ClientInstance{
-		ClientInfo:        &clientModel.ClientConfig{},
-		Scrapers:          make([]impl.ScraperInstance, 0),
-		PreUploadBridge:   bridge.GetPreUploadTransBridgeInstance(),
-		UploadTransBridge: bridge.GetUploadTransBridgeInstance(),
+		ClientInfo:     &clientModel.ClientConfig{},
+		Scrapers:       make([]model.ScraperInstance, 0),
+		PreUploadQueue: queue.GetPreUploadQueueInstance(),
+		UploadQueue:    queue.GetUploadQueueInstance(),
 	}
 	if err := clientEntry.OnInit(); err != nil {
 		logrus.Fatal("OnInit error:", err)
 	}
-	// 2. register signal handle, trigger clientEntry.OnStop when receive SIGINT
-	RegisterSignalHandle()
-	// TODO: 3. load client uuid
+	// TODO: 2. load client uuid
 	//uuid, _ := sqlite.LoadClientUUID()
 	//logrus.Debug("Client uuid: ", uuid.String())
-	// TODO: 4. init kitex client
+	// TODO: 3. init kitex client
 	kitexClientImpl := fileuploadservice.MustNewClient(
 		clientEntry.ClientInfo.DestServiceName,
 		kitexClient.WithTransportProtocol(kitexTransport.GRPC),
@@ -64,10 +61,9 @@ func main() {
 	//	signalChan <- syscall.SIGINT
 	//	logrus.Warn("Sending SIGINT after 300 seconds")
 	//})
-	// 5. start scrapers
-	clientEntry.Scrapers = ScraperLifeCycle.RegisterScraper(clientEntry.ClientInfo.ScraperInstance)
-	go ScraperLifeCycle.StartScraper(clientEntry.Scrapers)
-	// 6. start client upload
+	// 4. register signal handle, trigger clientEntry.OnStop when receive SIGINT
+	RegisterSignalHandle()
+	// 5. start client upload
 	ctx := context.Background()
 	for {
 		if err := clientEntry.HandleFilePreUpload(ctx, kitexClientImpl); err != nil {

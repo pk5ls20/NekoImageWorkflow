@@ -4,14 +4,14 @@ import (
 	"github.com/mitchellh/mapstructure"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	apiScp "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/impl"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/impl"
 	localScp "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/local/impl"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
 	"github.com/sirupsen/logrus"
 )
 
-func RegisterScraper(ScraperInstanceList clientModel.ScraperInstanceList) []impl.ScraperInstance {
-	ins := make([]impl.ScraperInstance, 0)
+func RegisterScraper(ScraperInstanceList clientModel.ScraperInstanceList) []model.ScraperInstance {
+	ins := make([]model.ScraperInstance, 0)
 	for scraperType, instances := range ScraperInstanceList {
 		switch scraperType {
 		case commonModel.LocalScraperType:

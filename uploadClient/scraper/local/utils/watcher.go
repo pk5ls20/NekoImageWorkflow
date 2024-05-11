@@ -6,7 +6,7 @@ import (
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/bridge"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +21,7 @@ func NewWatcher(watchFolders []string) error {
 		}
 	}(watcher)
 	go func() {
-		preUploadBridgeIns := bridge.GetPreUploadTransBridgeInstance()
+		preUploadQueue := queue.GetPreUploadQueueInstance()
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -36,8 +36,8 @@ func NewWatcher(watchFolders []string) error {
 						logrus.Errorf("Failed to create ScraperPreUploadFileData: %v", err)
 						continue
 					}
-					if _err := preUploadBridgeIns.Insert([]*clientModel.ScraperPreUploadFileDataModel{d}); _err != nil {
-						logrus.Errorf("Failed to insert file into preUploadBridgeIns: %v", err)
+					if _err := preUploadQueue.Insert([]*clientModel.PreUploadFileDataModel{d}); _err != nil {
+						logrus.Errorf("Failed to insert file into preUploadQueue: %v", err)
 					}
 				}
 			case err_, ok := <-watcher.Errors:

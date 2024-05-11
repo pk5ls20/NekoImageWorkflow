@@ -4,16 +4,13 @@ import (
 	"bytes"
 	"encoding/gob"
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
-	"github.com/sirupsen/logrus"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 )
 
 func init() {
 	// TODO: auto register, or add more!
-	gob.Register(&model.ScraperPreUploadFileDataModel{})
-	gob.Register(&model.ScraperPostUploadFileDataModel{})
-	gob.Register(&model.PreTransformDataModel{})
-	gob.Register(&model.PostTransformDataModel{})
+	gob.Register(&clientModel.PreUploadFileDataModel{})
+	gob.Register(&clientModel.UploadFileDataModel{})
 }
 
 // encodeData encodes the dbData into a byte slice
@@ -34,7 +31,6 @@ func encodeDataBatch[T dbDataModel](data *[]dbData[T]) ([][]byte, error) {
 		buffer := new(bytes.Buffer)
 		dataEncoder := gob.NewEncoder(buffer)
 		if err := dataEncoder.Encode(d); err != nil {
-			logrus.Error("Failed to encode data: ", err)
 			return nil, log.ErrorWrap(err)
 		}
 		result := buffer.Bytes()
