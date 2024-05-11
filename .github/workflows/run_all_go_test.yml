@@ -1,0 +1,15 @@
+name: Run all test
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  basis-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go 1.21.1
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.21.1
+      - name: Run go test
+        run: cd uploadClient && go test -v ./...
