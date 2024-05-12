@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	fileQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
 	"github.com/sirupsen/logrus"
@@ -66,33 +67,36 @@ func InitSqlite() {
 // CloseSqlite Securely close the database and write the contents of fileQueue
 func CloseSqlite() {
 	if dbInstance != nil {
-		// TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
-		// 1. write builtin channel data to database
-		preUploadQueue := fileQueue.GetPreUploadQueueInstance()
-		if preUploadQueue != nil {
-			tmpData, _ := preUploadQueue.PopAll()
-			tmpDBData := make([]*dbData[model.FileDataModel], len(tmpData))
-			for i, data := range tmpData {
-				tmpDBData[i] = &dbData[model.FileDataModel]{Tag: QueueDataTag, Data: data}
-			}
-			if err := InsertBatchDbData(tmpDBData); err != nil {
-				logrus.Error(err)
-			}
-		}
-		postUploadQueue := fileQueue.GetUploadQueueInstance()
-		if postUploadQueue != nil {
-			tmpData, _ := postUploadQueue.PopAll()
-			tmpDBData := make([]*dbData[model.FileDataModel], len(tmpData))
-			for i, data := range tmpData {
-				tmpDBData[i] = &dbData[model.FileDataModel]{Tag: QueueDataTag, Data: data}
-			}
-			if err := InsertBatchDbData(tmpDBData); err != nil {
-				logrus.Error(err)
-			}
-		}
+		pushQueueData()
 	}
 }
 
+func LoadClientUUID() (uuid.UUID, error) {
+	receiveData, err := FindDbDataModelByTag(UUIDTag)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	if len(receiveData) == 0 {
+		logrus.Warning("Client uuid not found, generating new one")
+		_uuid := uuid.New()
+		data := &dbData[uuid.UUID]{Tag: UUIDTag, Data: _uuid}
+		if _err := InsertDbData[uuid.UUID](data); _err != nil {
+			logrus.Fatal(err)
+		}
+		return _uuid, nil
+	}
+	if len(receiveData) > 0 {
+		logrus.Debug("Client uuid found")
+		_decodeData, _err := decodeData[uuid.UUID](receiveData[0].Data)
+		if _err != nil {
+			logrus.Fatal(err)
+		}
+		return _decodeData.Data, nil
+	}
+	return uuid.UUID{}, nil
+}
+
+// TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
 func receiveDataToQueue[T model.FileDataModel](data []*dbData[T]) {
 	ia := fileQueue.GetPreUploadQueueInstance()
 	ib := fileQueue.GetUploadQueueInstance()
@@ -116,6 +120,34 @@ func receiveDataToQueue[T model.FileDataModel](data []*dbData[T]) {
 	}
 	if len(ibList) > 0 {
 		if err := ib.Insert(ibList); err != nil {
+			logrus.Error(err)
+		}
+	}
+}
+
+func pushQueueData() {
+	// TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
+	// PreUploadFileDataModel
+	preUploadQueue := fileQueue.GetPreUploadQueueInstance()
+	if preUploadQueue != nil {
+		tmpData, _ := preUploadQueue.PopAll()
+		tmpDBData := make([]*dbData[model.FileDataModel], len(tmpData))
+		for i, data := range tmpData {
+			tmpDBData[i] = &dbData[model.FileDataModel]{Tag: QueueDataTag, Data: data}
+		}
+		if err := InsertBatchDbData(tmpDBData); err != nil {
+			logrus.Error(err)
+		}
+	}
+	// UploadFileDataModel
+	postUploadQueue := fileQueue.GetUploadQueueInstance()
+	if postUploadQueue != nil {
+		tmpData, _ := postUploadQueue.PopAll()
+		tmpDBData := make([]*dbData[model.FileDataModel], len(tmpData))
+		for i, data := range tmpData {
+			tmpDBData[i] = &dbData[model.FileDataModel]{Tag: QueueDataTag, Data: data}
+		}
+		if err := InsertBatchDbData(tmpDBData); err != nil {
 			logrus.Error(err)
 		}
 	}

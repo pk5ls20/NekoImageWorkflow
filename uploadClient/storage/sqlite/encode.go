@@ -3,12 +3,14 @@ package sqlite
 import (
 	"bytes"
 	"encoding/gob"
+	"github.com/google/uuid"
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 )
 
 func init() {
 	// TODO: auto register, or add more!
+	gob.Register(&uuid.UUID{})
 	gob.Register(&clientModel.PreUploadFileDataModel{})
 	gob.Register(&clientModel.UploadFileDataModel{})
 }

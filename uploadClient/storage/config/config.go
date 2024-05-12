@@ -48,9 +48,6 @@ func CreateConfig() {
 	viper.SetConfigType("json")
 	// TODO: update the outdated config fit for the new code in main.go
 	viper.Set("ClientConfig", ClientConfig{
-		ClientID:              "example-id",
-		ClientName:            "example-name",
-		DestServiceName:       "example-service",
 		ClientRegisterAddress: "https://example.com/register",
 		ConsulAddress:         "https://example-consul.com",
 		PostUploadPeriod:      300,

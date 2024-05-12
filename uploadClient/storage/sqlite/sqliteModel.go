@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"github.com/google/uuid"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 )
 
@@ -12,7 +13,7 @@ const (
 // dbDataModel interface should contain all the structs expected to be stored in the database
 // These structs **must be registered by gob**
 type dbDataModel interface {
-	clientModel.BaseFileDataModel
+	clientModel.BaseFileDataModel | uuid.UUID
 }
 
 // dbData is a data structure that acts as an intermediary between the actual dbDataStoredModel stored in the sqlite

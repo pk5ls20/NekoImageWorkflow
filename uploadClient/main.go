@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	kitexClient "github.com/cloudwego/kitex/client"
 	kitexTransport "github.com/cloudwego/kitex/transport"
 	_ "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	clientImpl "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/impl"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile/fileuploadservice"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
+	kitexUploadService "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile/fileuploadservice"
+	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/sqlite"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -37,7 +39,7 @@ func main() {
 	// 1. init clientImpl
 	clientEntry = clientImpl.ClientInstance{
 		ClientInfo:     &clientModel.ClientConfig{},
-		Scrapers:       make([]model.ScraperInstance, 0),
+		Scrapers:       make([]scraperModel.ScraperInstance, 0),
 		PreUploadQueue: queue.GetPreUploadQueueInstance(),
 		UploadQueue:    queue.GetUploadQueueInstance(),
 	}
@@ -45,11 +47,11 @@ func main() {
 		logrus.Fatal("OnInit error:", err)
 	}
 	// TODO: 2. load client uuid
-	//uuid, _ := sqlite.LoadClientUUID()
-	//logrus.Debug("Client uuid: ", uuid.String())
+	uuid, _ := sqlite.LoadClientUUID()
+	logrus.Debug("Client uuid: ", uuid.String())
 	// TODO: 3. init kitex client
-	kitexClientImpl := fileuploadservice.MustNewClient(
-		clientEntry.ClientInfo.DestServiceName,
+	kitexClientImpl := kitexUploadService.MustNewClient(
+		fmt.Sprintf("uploadClient-%s", uuid.String()),
 		kitexClient.WithTransportProtocol(kitexTransport.GRPC),
 		kitexClient.WithHostPorts("127.0.0.1:8888"),
 	)
