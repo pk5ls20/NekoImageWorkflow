@@ -1,2 +1,3 @@
 ## NekoImageWorkflow
 [![wakatime](https://wakatime.com/badge/user/4e079db9-a68b-469b-a3b4-1a7e1bb4d357/project/018f086f-6427-4fdb-a592-3180222b8c3c.svg)](https://wakatime.com/badge/user/4e079db9-a68b-469b-a3b4-1a7e1bb4d357/project/018f086f-6427-4fdb-a592-3180222b8c3c)
+[![codecov](https://codecov.io/gh/pk5ls20/NekoImageWorkflow/graph/badge.svg?token=Gwj43MTr9D)](https://codecov.io/gh/pk5ls20/NekoImageWorkflow)
