@@ -51,7 +51,7 @@ func CreateConfig() {
 		ClientRegisterAddress: "https://example.com/register",
 		ConsulAddress:         "https://example-consul.com",
 		PostUploadPeriod:      300,
-		ScraperInstance: map[commonModel.ScraperType][]ScraperInstance{
+		Scraper: map[commonModel.ScraperType][]Scraper{
 			commonModel.LocalScraperType: {
 				LocalScraperConfig{
 					Enable:       true,
@@ -65,6 +65,8 @@ func CreateConfig() {
 						{
 							APIAddress:           "https://example-api.com",
 							ParserJavaScriptFile: "example-parser.js",
+							OptionalHeaders:      []string{"header1: value1"},
+							OptionalCookies:      []string{"cookie1=value1"},
 						},
 					},
 				},

@@ -17,16 +17,16 @@ type fileQueue[T clientModel.BaseFileDataModel] interface {
 	closeInputChannel() error
 }
 
-type baseFileQueueInstance[T clientModel.BaseFileDataModel] struct {
+type baseFileQueue[T clientModel.BaseFileDataModel] struct {
 	channel *chanx.UnboundedChan[*T]
 	fileQueue[T]
 }
 
-func (c *baseFileQueueInstance[T]) Length() int {
+func (c *baseFileQueue[T]) Length() int {
 	return c.channel.Len()
 }
 
-func (c *baseFileQueueInstance[T]) Insert(val []*T) (err error) {
+func (c *baseFileQueue[T]) Insert(val []*T) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = log.ErrorWrap(errors.New("failed to insert: channel is closed or channel is nil"))
@@ -38,7 +38,7 @@ func (c *baseFileQueueInstance[T]) Insert(val []*T) (err error) {
 	return nil
 }
 
-func (c *baseFileQueueInstance[T]) Pop(number int) ([]*T, error) {
+func (c *baseFileQueue[T]) Pop(number int) ([]*T, error) {
 	if number < 0 {
 		return nil, log.ErrorWrap(errors.New("pop number should be positive"))
 	}
@@ -58,7 +58,7 @@ func (c *baseFileQueueInstance[T]) Pop(number int) ([]*T, error) {
 	return tmp, nil
 }
 
-func (c *baseFileQueueInstance[T]) PopAll() ([]*T, error) {
+func (c *baseFileQueue[T]) PopAll() ([]*T, error) {
 	if err := c.closeInputChannel(); err != nil {
 		return nil, log.ErrorWrap(err)
 	}
@@ -70,7 +70,7 @@ func (c *baseFileQueueInstance[T]) PopAll() ([]*T, error) {
 	return pop, nil
 }
 
-func (c *baseFileQueueInstance[T]) closeInputChannel() (err error) {
+func (c *baseFileQueue[T]) closeInputChannel() (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = log.ErrorWrap(errors.New("failed to close: channel is closed or channel is nil"))
@@ -80,27 +80,27 @@ func (c *baseFileQueueInstance[T]) closeInputChannel() (err error) {
 	return nil
 }
 
-type PreUploadQueueInstance struct {
-	baseFileQueueInstance[clientModel.PreUploadFileDataModel]
+type PreUploadQueue struct {
+	baseFileQueue[clientModel.PreUploadFileDataModel]
 }
 
-type UploadQueueInstance struct {
-	baseFileQueueInstance[clientModel.UploadFileDataModel]
+type UploadQueue struct {
+	baseFileQueue[clientModel.UploadFileDataModel]
 }
 
 var (
-	preUploadQueueInstance *PreUploadQueueInstance
+	preUploadQueueInstance *PreUploadQueue
 	preUploadQueueOnce     sync.Once
-	uploadQueueInstance    *UploadQueueInstance
+	uploadQueueInstance    *UploadQueue
 	uploadQueueOnce        sync.Once
 )
 
 const initCap = 100
 
-func GetPreUploadQueueInstance() *PreUploadQueueInstance {
+func GetPreUploadQueue() *PreUploadQueue {
 	preUploadQueueOnce.Do(func() {
-		preUploadQueueInstance = &PreUploadQueueInstance{
-			baseFileQueueInstance: baseFileQueueInstance[clientModel.PreUploadFileDataModel]{
+		preUploadQueueInstance = &PreUploadQueue{
+			baseFileQueue: baseFileQueue[clientModel.PreUploadFileDataModel]{
 				channel: chanx.NewUnboundedChan[*clientModel.PreUploadFileDataModel](context.Background(), initCap),
 			},
 		}
@@ -108,10 +108,10 @@ func GetPreUploadQueueInstance() *PreUploadQueueInstance {
 	return preUploadQueueInstance
 }
 
-func GetUploadQueueInstance() *UploadQueueInstance {
+func GetUploadQueue() *UploadQueue {
 	uploadQueueOnce.Do(func() {
-		uploadQueueInstance = &UploadQueueInstance{
-			baseFileQueueInstance: baseFileQueueInstance[clientModel.UploadFileDataModel]{
+		uploadQueueInstance = &UploadQueue{
+			baseFileQueue: baseFileQueue[clientModel.UploadFileDataModel]{
 				channel: chanx.NewUnboundedChan[*clientModel.UploadFileDataModel](context.Background(), initCap),
 			},
 		}

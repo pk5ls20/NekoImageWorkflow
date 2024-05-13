@@ -274,7 +274,7 @@ func (x *ClientInfo) GetClientType() ClientType {
 
 // PreUploadFileData
 // ResourceUUID Used to uniquely identify the resource
-// ResourceUri Path to the local ClientImpl for the resource
+// ResourceUri Path to the local Client for the resource
 type PreUploadFileData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -332,7 +332,7 @@ func (x *PreUploadFileData) GetResourceUri() string {
 
 // UploadFileData
 // FileUUID Used to uniquely identify the uploaded file
-// FileContent Path to the local ClientImpl for the uploaded file
+// FileContent Path to the local Client for the uploaded file
 type UploadFileData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

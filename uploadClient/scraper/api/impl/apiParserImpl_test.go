@@ -32,7 +32,7 @@ func createTempFile(content string, id string, t *testing.T) (string, func()) {
 
 // testing Register
 func TestAPIParserImpl_RegisterSingleParser_Success(t *testing.T) {
-	parser := APIParserImpl{}
+	parser := APIParser{}
 	parser.Init()
 	filePath, cleanup := createTempFile("function pasteJson(json) { return JSON.parse(json); }", "0", t)
 	defer cleanup()
@@ -40,13 +40,13 @@ func TestAPIParserImpl_RegisterSingleParser_Success(t *testing.T) {
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	if _, exists := parser.parserMap[filepath.Base(filePath)]; !exists {
+	if _, exists := parser.parserMap[filePath]; !exists {
 		t.Errorf("Parser was not registered properly")
 	}
 }
 
 func TestAPIParserImpl_RegisterMultipleParsers_Success(t *testing.T) {
-	parser := APIParserImpl{}
+	parser := APIParser{}
 	parser.Init()
 	filePath1, cleanup1 := createTempFile("function pasteJson(json) { return JSON.parse(json); }", "0", t)
 	defer cleanup1()
@@ -58,16 +58,16 @@ func TestAPIParserImpl_RegisterMultipleParsers_Success(t *testing.T) {
 	if err := parser.RegisterParser(filePath2); err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	if _, exists := parser.parserMap[filepath.Base(filePath1)]; !exists {
+	if _, exists := parser.parserMap[filePath1]; !exists {
 		t.Errorf("First parser was not registered properly")
 	}
-	if _, exists := parser.parserMap[filepath.Base(filePath2)]; !exists {
+	if _, exists := parser.parserMap[filePath2]; !exists {
 		t.Errorf("Second parser was not registered properly")
 	}
 }
 
 func TestAPIParserImpl_RegisterParser_Fail(t *testing.T) {
-	parser := APIParserImpl{}
+	parser := APIParser{}
 	parser.Init()
 	if err := parser.RegisterParser("non_existent_file.js"); err == nil {
 		t.Errorf("Expected an error for nonexistent file, got nil")
@@ -76,7 +76,7 @@ func TestAPIParserImpl_RegisterParser_Fail(t *testing.T) {
 
 // testing ParseJson
 func TestAPIParserImpl_ParseJson_Success(t *testing.T) {
-	parser := APIParserImpl{}
+	parser := APIParser{}
 	parser.Init()
 	jsContent := `
 	function pasteJson(json) {
@@ -88,7 +88,7 @@ func TestAPIParserImpl_ParseJson_Success(t *testing.T) {
 	if err := parser.RegisterParser(filePath); err != nil {
 		t.Fatal("Failed to register parser:", err)
 	}
-	result, err := parser.ParseJson(`{"key":[0,1,2,3,4,5]}`, filepath.Base(filePath))
+	result, err := parser.ParseJson(`{"key":[0,1,2,3,4,5]}`, filePath)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
@@ -99,7 +99,7 @@ func TestAPIParserImpl_ParseJson_Success(t *testing.T) {
 }
 
 func TestAPIParserImpl_ParseJson_JSError(t *testing.T) {
-	parser := APIParserImpl{}
+	parser := APIParser{}
 	parser.Init()
 	jsContent := `function pasteJson(json) { return JSON.parse(json); }`
 	filePath, cleanup := createTempFile(jsContent, "0", t)
@@ -113,7 +113,7 @@ func TestAPIParserImpl_ParseJson_JSError(t *testing.T) {
 }
 
 func TestAPIParserImpl_ParseJson_NoInit(t *testing.T) {
-	parser := APIParserImpl{}
+	parser := APIParser{}
 	jsContent := `function pasteJson(json) { return JSON.parse(json); }`
 	filePath, cleanup := createTempFile(jsContent, "0", t)
 	defer cleanup()
@@ -131,7 +131,7 @@ type pasteTask struct {
 }
 
 func TestAPIParserImpl_Concurrency(t *testing.T) {
-	parser := &APIParserImpl{}
+	parser := &APIParser{}
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
@@ -142,7 +142,7 @@ func TestAPIParserImpl_Concurrency(t *testing.T) {
 	}
 	wg.Wait()
 	if !parser.initialized {
-		t.Errorf("APIParserImpl was not initialized correctly")
+		t.Errorf("APIParser was not initialized correctly")
 	}
 	wg = sync.WaitGroup{}
 	results := make(chan pasteTask, 100)
@@ -159,7 +159,7 @@ func TestAPIParserImpl_Concurrency(t *testing.T) {
 				t.Errorf("error registering parser with %s: %v", filePath, err)
 			}
 			result, err := parser.ParseJson(fmt.Sprintf("{\"key%s\": [%s]}", strconv.Itoa(id), strconv.Itoa(id)),
-				filepath.Base(filePath))
+				filePath)
 			if err != nil {
 				t.Errorf("error parsing JSON with %s: %v", filePath, err)
 			} else {

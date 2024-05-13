@@ -9,17 +9,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type LocalScraperInstance struct {
-	model.ScraperInstance
+type LocalScraper struct {
+	model.Scraper
 	InsConfig *clientModel.LocalScraperConfig
 }
 
-func (c *LocalScraperInstance) OnStart() error {
+func (c *LocalScraper) OnStart() error {
 	logrus.Debugf("%s Onstart Start!", c.GetType())
 	return nil
 }
 
-func (c *LocalScraperInstance) PrepareData() error {
+func (c *LocalScraper) PrepareData() error {
 	logrus.Debugf("Start to fetch data from local")
 	err := utils.NewWatcher(c.InsConfig.WatchFolders)
 	if err != nil {
@@ -28,17 +28,17 @@ func (c *LocalScraperInstance) PrepareData() error {
 	return nil
 }
 
-func (c *LocalScraperInstance) ProcessData() error {
+func (c *LocalScraper) ProcessData() error {
 	logrus.Debugf("Start to process data from local")
 	// TODO: make it really work
 	return nil
 }
 
-func (c *LocalScraperInstance) OnStop() error {
+func (c *LocalScraper) OnStop() error {
 	logrus.Debugf("%s Onstop Start!", c.GetType())
 	return nil
 }
 
-func (c *LocalScraperInstance) GetType() commonModel.ScraperType {
+func (c *LocalScraper) GetType() commonModel.ScraperType {
 	return commonModel.LocalScraperType
 }

@@ -1,13 +1,15 @@
 package model
 
-import "time"
-
-type SpiderTasks = []*SpiderTask
+import (
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
+	"time"
+)
 
 type SpiderTask struct {
 	Url          string
 	TotalRetries int
 	Success      bool
+	FetchData    model.UploadFileDataModel
 }
 
 type Spider interface {

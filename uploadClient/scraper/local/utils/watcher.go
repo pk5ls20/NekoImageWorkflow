@@ -21,7 +21,7 @@ func NewWatcher(watchFolders []string) error {
 		}
 	}(watcher)
 	go func() {
-		preUploadQueue := queue.GetPreUploadQueueInstance()
+		preUploadQueue := queue.GetPreUploadQueue()
 		for {
 			select {
 			case event, ok := <-watcher.Events:

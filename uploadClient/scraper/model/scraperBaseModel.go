@@ -5,7 +5,7 @@ import (
 )
 
 type Scraper interface {
-	// OnStart is called when Scraper is started
+	// OnStart is called when scraper is started
 	OnStart() error
 	// PrepareData prepare raw data, designed to be run in a goroutine once
 	PrepareData() error
@@ -13,9 +13,6 @@ type Scraper interface {
 	ProcessData() error
 	// OnStop is called when program stopped
 	OnStop() error
-}
-
-type ScraperInstance interface {
-	Scraper
+	// GetType return the type of the scraper
 	GetType() commomModel.ScraperType
 }

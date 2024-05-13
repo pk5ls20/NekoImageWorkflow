@@ -4,16 +4,17 @@ import (
 	"context"
 	"fmt"
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	scraperModels "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/utils"
 	"github.com/sirupsen/logrus"
-	"net/http"
 	"runtime"
 	"sync"
 	"time"
 )
 
-type APISpiderImpl struct {
+type APISpider struct {
 	scraperModels.Spider
 	// fetch list
 	fetchList []string
@@ -23,7 +24,8 @@ type APISpiderImpl struct {
 	// protected values
 	initialized                    bool
 	wg                             sync.WaitGroup
-	httpClient                     *http.Client
+	httpClient                     *utils.HttpClient
+	header                         string
 	config                         *scraperModels.SpiderConfig
 	initialConcurrentTaskLimit     int
 	initialSingleTaskRetryDuration time.Duration
@@ -36,21 +38,14 @@ type APISpiderImpl struct {
 	singleTaskRetryDuration utils.RWLockValue[time.Duration]
 }
 
-func (s *APISpiderImpl) Init(fetchList []string, config *scraperModels.SpiderConfig) error {
+func (s *APISpider) Init(fetchList []string, config *scraperModels.SpiderConfig) error {
 	// init fetch list
 	s.fetchList = fetchList
 	// init context
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	// init protected values
 	s.wg = sync.WaitGroup{}
-	s.httpClient = &http.Client{
-		Transport: &http.Transport{
-			MaxIdleConns:        1000,
-			MaxIdleConnsPerHost: 1000,
-			MaxConnsPerHost:     1000,
-		},
-		Timeout: 10 * time.Second,
-	}
+	s.httpClient = utils.NewHttpClient()
 	s.config = config
 	s.initialConcurrentTaskLimit = config.ConcurrentTaskLimit
 	s.initialSingleTaskRetryDuration = config.SingleTaskRetryDuration
@@ -78,9 +73,9 @@ func (s *APISpiderImpl) Init(fetchList []string, config *scraperModels.SpiderCon
 	return nil
 }
 
-func (s *APISpiderImpl) Start() error {
+func (s *APISpider) Start() error {
 	if !s.initialized {
-		return log.ErrorWrap(fmt.Errorf("APIParser not initialized"))
+		return log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
 	s.wg.Add(len(s.fetchList))
 	go func() {
@@ -108,10 +103,12 @@ func (s *APISpiderImpl) Start() error {
 	return nil
 }
 
-func (s *APISpiderImpl) WaitDone() ([]*scraperModels.SpiderTask, error) {
+// WaitDone will block until all tasks are done
+// TODO: ctx to control lifecycle
+func (s *APISpider) WaitDone() ([]*scraperModels.SpiderTask, error) {
 	doneTasks := make([]*scraperModels.SpiderTask, 0)
 	if !s.initialized {
-		return doneTasks, log.ErrorWrap(fmt.Errorf("APIParser not initialized"))
+		return doneTasks, log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
 	s.wg.Wait()
 	s.cancel()
@@ -124,7 +121,7 @@ func (s *APISpiderImpl) WaitDone() ([]*scraperModels.SpiderTask, error) {
 	return doneTasks, nil
 }
 
-func (s *APISpiderImpl) httpRequest(task *scraperModels.SpiderTask) {
+func (s *APISpider) httpRequest(task *scraperModels.SpiderTask) {
 	for {
 		if task.TotalRetries > s.config.SingleTaskMaxRetriesTime {
 			logrus.Warning("Failed to fetch ", task.Url,
@@ -133,18 +130,20 @@ func (s *APISpiderImpl) httpRequest(task *scraperModels.SpiderTask) {
 			s.wg.Done()
 			return
 		}
-		resp, err := s.httpClient.Get(task.Url)
+		resData, resError := s.httpClient.Get(task.Url)
 		s.fetchAllTime.Set(s.fetchAllTime.Get() + 1)
 		task.TotalRetries++
-		if err != nil {
-			logrus.Errorf("Failed to fetch %s due to err: %v", task.Url, err)
+		if resError != nil {
+			logrus.Errorf("Failed to fetch %s due to err: %v", task.Url, resError)
 			time.Sleep(s.singleTaskRetryDuration.Get())
 			continue
 		}
-		if resp.StatusCode != 200 {
-			logrus.Errorf("Failed to fetch %s due to statusCode: %s", task.Url, resp.Status)
+		if fetchData, err := model.NewScraperUploadTempFileData(commonModel.APIScraperType, resData); err != nil {
+			logrus.Errorf("Failed to create temp file data due to err: %v", err)
 			time.Sleep(s.singleTaskRetryDuration.Get())
 			continue
+		} else {
+			task.FetchData = *fetchData
 		}
 		task.Success = true
 		logrus.Infof("Successfully fetched %s", task.Url)
@@ -155,7 +154,7 @@ func (s *APISpiderImpl) httpRequest(task *scraperModels.SpiderTask) {
 	}
 }
 
-func (s *APISpiderImpl) dynamicChangeFailTime() {
+func (s *APISpider) dynamicChangeFailTime() {
 	ticker := time.NewTicker(s.config.AdjustLimitCheckTime)
 	defer ticker.Stop()
 	for {

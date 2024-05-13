@@ -1,5 +1,6 @@
-/output
-/.vscode
-/.idea
-/playground
+/output/
+/.vscode/
+/.idea/
+/playground/
+/_tmp/
 *.exe

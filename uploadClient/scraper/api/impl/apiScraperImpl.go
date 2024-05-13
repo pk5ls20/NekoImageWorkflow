@@ -8,37 +8,37 @@ import (
 )
 
 type APIScraperWorker struct {
-	spider *APISpiderImpl
+	spider *APISpider
 }
 
-type APIScraperInstance struct {
-	scraperImpl.ScraperInstance
+type APIScraper struct {
+	scraperImpl.Scraper
 	InsConfig      *clientModel.APIScraperConfig
 	fetchAPISpider []*APIScraperWorker
 }
 
-func (c *APIScraperInstance) OnStart() error {
+func (c *APIScraper) OnStart() error {
 	logrus.Debugf("%s Onstart Start!", c.GetType())
 	return nil
 }
 
 // PrepareData TODO: implement this
-func (c *APIScraperInstance) PrepareData() error {
+func (c *APIScraper) PrepareData() error {
 	logrus.Debugf("Start to fetch data from API")
 	return nil
 }
 
 // ProcessData TODO: make it really work
-func (c *APIScraperInstance) ProcessData() error {
+func (c *APIScraper) ProcessData() error {
 	logrus.Debugf("Start to process data from API")
 	return nil
 }
 
-func (c *APIScraperInstance) OnStop() error {
+func (c *APIScraper) OnStop() error {
 	logrus.Debugf("%s Onstop Start!", c.GetType())
 	return nil
 }
 
-func (c *APIScraperInstance) GetType() commonModel.ScraperType {
+func (c *APIScraper) GetType() commonModel.ScraperType {
 	return commonModel.APIScraperType
 }

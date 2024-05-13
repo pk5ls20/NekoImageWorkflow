@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-func StartScraper(scp []model.ScraperInstance) {
+func StartScraper(scp []model.Scraper) {
 	for _, scraperInstance := range scp {
 		var wg sync.WaitGroup
 		instance := scraperInstance

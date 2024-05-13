@@ -5,7 +5,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func StopScraper(scp []model.ScraperInstance) {
+func StopScraper(scp []model.Scraper) {
 	for _, scraperInstance := range scp {
 		if err := scraperInstance.OnStop(); err != nil {
 			logrus.Error("OnStop error:", err)

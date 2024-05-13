@@ -8,31 +8,33 @@ type ConfigWrapper struct {
 	ClientConfig ClientConfig `mapstructure:"clientconfig" json:"clientconfig"`
 }
 
-type ScraperInstanceList map[model.ScraperType][]ScraperInstance
+type ScraperList map[model.ScraperType][]Scraper
 
 type ClientConfig struct {
-	ClientRegisterAddress string              `mapstructure:"ClientRegisterAddress" json:"ClientRegisterAddress"`
-	ConsulAddress         string              `mapstructure:"ConsulAddress" json:"ConsulAddress"`
-	PostUploadPeriod      int                 `mapstructure:"PostUploadPeriod" json:"PostUploadPeriod"`
-	ScraperInstance       ScraperInstanceList `mapstructure:"ScraperInstance" json:"ScraperInstance"`
+	ClientRegisterAddress string      `mapstructure:"ClientRegisterAddress" json:"ClientRegisterAddress"`
+	ConsulAddress         string      `mapstructure:"ConsulAddress" json:"ConsulAddress"`
+	PostUploadPeriod      int         `mapstructure:"PostUploadPeriod" json:"PostUploadPeriod"`
+	Scraper               ScraperList `mapstructure:"Scraper" json:"Scraper"`
 }
 
-type ScraperInstance interface {
+type Scraper interface {
 }
 
 type LocalScraperConfig struct {
-	_            ScraperInstance `mapstructure:"LocalScraper"`
-	Enable       bool            `mapstructure:"Enable"`
-	WatchFolders []string        `mapstructure:"WatchFolders"`
+	_            Scraper  `mapstructure:"LocalScraper"`
+	Enable       bool     `mapstructure:"Enable"`
+	WatchFolders []string `mapstructure:"WatchFolders"`
 }
 
 type APIScraperConfig struct {
-	_                ScraperInstance          `mapstructure:"APIScraper"`
+	_                Scraper                  `mapstructure:"APIScraper"`
 	Enable           bool                     `mapstructure:"Enable"`
 	APIScraperSource []APIScraperSourceConfig `mapstructure:"APIScraperSource"`
 }
 
 type APIScraperSourceConfig struct {
-	APIAddress           string `mapstructure:"APIAddress"`
-	ParserJavaScriptFile string `mapstructure:"ParserJavaScriptFile"`
+	APIAddress           string   `mapstructure:"APIAddress"`
+	ParserJavaScriptFile string   `mapstructure:"ParserJavaScriptFile"`
+	OptionalHeaders      []string `mapstructure:"OptionalHeader"`
+	OptionalCookies      []string `mapstructure:"OptionalCookies"`
 }

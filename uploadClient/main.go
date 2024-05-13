@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-var clientEntry clientImpl.ClientInstance
+var client clientImpl.Client
 var signalChan chan os.Signal
 
 func RegisterSignalHandle() {
@@ -28,7 +28,7 @@ func RegisterSignalHandle() {
 	go func() {
 		<-signalChan
 		logrus.Warn("Received shutdown signal")
-		if err := clientEntry.OnStop(); err != nil {
+		if err := client.OnStop(); err != nil {
 			logrus.Error("OnStop error:", err)
 		}
 		os.Exit(0)
@@ -37,13 +37,13 @@ func RegisterSignalHandle() {
 
 func main() {
 	// 1. init clientImpl
-	clientEntry = clientImpl.ClientInstance{
+	client = clientImpl.Client{
 		ClientInfo:     &clientModel.ClientConfig{},
-		Scrapers:       make([]scraperModel.ScraperInstance, 0),
-		PreUploadQueue: queue.GetPreUploadQueueInstance(),
-		UploadQueue:    queue.GetUploadQueueInstance(),
+		Scrapers:       make([]scraperModel.Scraper, 0),
+		PreUploadQueue: queue.GetPreUploadQueue(),
+		UploadQueue:    queue.GetUploadQueue(),
 	}
-	if err := clientEntry.OnInit(); err != nil {
+	if err := client.OnInit(); err != nil {
 		logrus.Fatal("OnInit error:", err)
 	}
 	// TODO: 2. load client uuid
@@ -55,7 +55,7 @@ func main() {
 		kitexClient.WithTransportProtocol(kitexTransport.GRPC),
 		kitexClient.WithHostPorts("127.0.0.1:8888"),
 	)
-	if err := clientEntry.OnStart(); err != nil {
+	if err := client.OnStart(); err != nil {
 		logrus.Error("OnStart error:", err)
 	}
 	// TODO: debug after 30s
@@ -63,17 +63,17 @@ func main() {
 	//	signalChan <- syscall.SIGINT
 	//	logrus.Warn("Sending SIGINT after 300 seconds")
 	//})
-	// 4. register signal handle, trigger clientEntry.OnStop when receive SIGINT
+	// 4. register signal handle, trigger client.OnStop when receive SIGINT
 	RegisterSignalHandle()
 	// 5. start client upload
 	ctx := context.Background()
 	for {
-		if err := clientEntry.HandleFilePreUpload(ctx, kitexClientImpl); err != nil {
+		if err := client.HandleFilePreUpload(ctx, kitexClientImpl); err != nil {
 			logrus.Error("PreUpload error:", err)
 		}
-		if err := clientEntry.HandleFilePostUpload(ctx, kitexClientImpl); err != nil {
+		if err := client.HandleFilePostUpload(ctx, kitexClientImpl); err != nil {
 			logrus.Error("PostUpload error:", err)
 		}
-		time.Sleep(time.Second * time.Duration(clientEntry.ClientInfo.PostUploadPeriod))
+		time.Sleep(time.Second * time.Duration(client.ClientInfo.PostUploadPeriod))
 	}
 }

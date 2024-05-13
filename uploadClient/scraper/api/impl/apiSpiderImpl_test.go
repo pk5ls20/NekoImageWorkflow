@@ -27,7 +27,7 @@ func TestAPISpiderWithMockServer(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
-	spider := &APISpiderImpl{}
+	spider := &APISpider{}
 	urls := make([]string, 1000)
 	for i := 0; i < 1000; i++ {
 		urls[i] = server.URL

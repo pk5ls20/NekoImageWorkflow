@@ -98,8 +98,8 @@ func LoadClientUUID() (uuid.UUID, error) {
 
 // TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
 func receiveDataToQueue[T model.FileDataModel](data []*dbData[T]) {
-	ia := fileQueue.GetPreUploadQueueInstance()
-	ib := fileQueue.GetUploadQueueInstance()
+	ia := fileQueue.GetPreUploadQueue()
+	ib := fileQueue.GetUploadQueue()
 	iaList := make([]*model.PreUploadFileDataModel, 0)
 	ibList := make([]*model.UploadFileDataModel, 0)
 	for _, d := range data {
@@ -128,7 +128,7 @@ func receiveDataToQueue[T model.FileDataModel](data []*dbData[T]) {
 func pushQueueData() {
 	// TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
 	// PreUploadFileDataModel
-	preUploadQueue := fileQueue.GetPreUploadQueueInstance()
+	preUploadQueue := fileQueue.GetPreUploadQueue()
 	if preUploadQueue != nil {
 		tmpData, _ := preUploadQueue.PopAll()
 		tmpDBData := make([]*dbData[model.FileDataModel], len(tmpData))
@@ -140,7 +140,7 @@ func pushQueueData() {
 		}
 	}
 	// UploadFileDataModel
-	postUploadQueue := fileQueue.GetUploadQueueInstance()
+	postUploadQueue := fileQueue.GetUploadQueue()
 	if postUploadQueue != nil {
 		tmpData, _ := postUploadQueue.PopAll()
 		tmpDBData := make([]*dbData[model.FileDataModel], len(tmpData))

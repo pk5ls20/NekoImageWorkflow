@@ -7,15 +7,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"io"
 	"os"
-	"path/filepath"
 	"reflect"
 	"sync"
 )
 
 const JSParseFunctionName = "pasteJson"
 
-type APIParser interface {
-	// Init initializes the APIParser
+type apiParser interface {
+	// Init initializes the apiParser
 	Init()
 	// RegisterParser registers a new parser from a JS file
 	RegisterParser(jsFilePath string) error
@@ -23,8 +22,8 @@ type APIParser interface {
 	ParseJson(rawJson string, parserName string) ([]string, error)
 }
 
-type APIParserImpl struct {
-	APIParser
+type APIParser struct {
+	apiParser
 	vm          *otto.Otto
 	mutex       sync.Mutex
 	once        sync.Once
@@ -32,7 +31,7 @@ type APIParserImpl struct {
 	initialized bool
 }
 
-func (a *APIParserImpl) Init() {
+func (a *APIParser) Init() {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	a.vm = otto.New()
@@ -40,13 +39,12 @@ func (a *APIParserImpl) Init() {
 	a.initialized = true
 }
 
-func (a *APIParserImpl) RegisterParser(jsFilePath string) error {
+func (a *APIParser) RegisterParser(jsFilePath string) error {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	if !a.initialized {
-		return log.ErrorWrap(fmt.Errorf("APIParser not initialized"))
+		return log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
-	fileName := filepath.Base(jsFilePath)
 	file, err := os.Open(jsFilePath)
 	if err != nil {
 		return log.ErrorWrap(err)
@@ -60,19 +58,19 @@ func (a *APIParserImpl) RegisterParser(jsFilePath string) error {
 	if err != nil {
 		return log.ErrorWrap(err)
 	}
-	a.parserMap[fileName] = string(content)
+	a.parserMap[jsFilePath] = string(content)
 	return nil
 }
 
-func (a *APIParserImpl) ParseJson(rawJson string, parserName string) ([]string, error) {
+func (a *APIParser) ParseJson(rawJson string, jsFilePath string) ([]string, error) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
 	if !a.initialized {
-		return nil, log.ErrorWrap(fmt.Errorf("APIParser not initialized"))
+		return nil, log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
-	jsCode, ok := a.parserMap[parserName]
+	jsCode, ok := a.parserMap[jsFilePath]
 	if !ok {
-		return nil, log.ErrorWrap(fmt.Errorf("parser %s not found", parserName))
+		return nil, log.ErrorWrap(fmt.Errorf("parser %s not found", jsFilePath))
 	}
 	_, err := a.vm.Run(jsCode)
 	if err != nil {
