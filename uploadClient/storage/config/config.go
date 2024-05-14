@@ -65,8 +65,12 @@ func CreateConfig() {
 						{
 							APIAddress:           "https://example-api.com",
 							ParserJavaScriptFile: "example-parser.js",
-							OptionalHeaders:      []string{"header1: value1"},
-							OptionalCookies:      []string{"cookie1=value1"},
+							OptionalHeaders: map[string]string{
+								"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+									"AppleWebKit/537.36 (KHTML, like Gecko) " +
+									"Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
+							},
+							OptionalCookies: map[string]string{},
 						},
 					},
 				},

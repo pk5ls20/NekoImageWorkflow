@@ -21,6 +21,7 @@ type FileDataModel interface {
 	// only call in the constructor
 	calculateUUID() error
 	// PrepareUpload is a function that prepares the data for upload, wait to implement
+	// TODO: maybe, here can transform the FileDataModel itself to model which adapt to kitexClient proto
 	PrepareUpload() error
 	// FinishUpload use to clean up temp files (if exists) after successful upload
 	FinishUpload() error

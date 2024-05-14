@@ -5,18 +5,33 @@ import (
 	"time"
 )
 
+// SpiderTask is the base task for spider
+// NOTE: SpiderTasks are not goroutine-safe to write to
+// which means that they should not be changed once they have been initialised.
 type SpiderTask struct {
-	Url          string
+	Url     string
+	Headers map[string]string
+	Cookies map[string]string
+}
+
+// SpiderToDoTask is the task to do
+type SpiderToDoTask struct {
+	*SpiderTask
+}
+
+// SpiderDoTask completes its init in func (s *APISpider) Init and returns after WaitDone()
+type SpiderDoTask struct {
+	*SpiderTask
 	TotalRetries int
 	Success      bool
 	FetchData    model.UploadFileDataModel
 }
 
 type Spider interface {
-	Init(fetchList []string, config *SpiderConfig) error
+	Init(fetchTaskList []*SpiderToDoTask, config *SpiderConfig) error
 	Start() error
-	WaitDone() ([]*SpiderTask, error)
-	httpRequest(task *SpiderTask)
+	WaitDone() ([]*SpiderDoTask, error)
+	httpRequest(task *SpiderDoTask)
 }
 
 type SpiderConfig struct {

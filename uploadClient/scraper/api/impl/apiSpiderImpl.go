@@ -17,7 +17,7 @@ import (
 type APISpider struct {
 	scraperModels.Spider
 	// fetch list
-	fetchList []string
+	fetchList []*scraperModels.SpiderToDoTask
 	// context
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -25,12 +25,11 @@ type APISpider struct {
 	initialized                    bool
 	wg                             sync.WaitGroup
 	httpClient                     *utils.HttpClient
-	header                         string
 	config                         *scraperModels.SpiderConfig
 	initialConcurrentTaskLimit     int
 	initialSingleTaskRetryDuration time.Duration
-	taskPendingChannel             chan *scraperModels.SpiderTask
-	taskDoneChannel                chan *scraperModels.SpiderTask
+	taskPendingChannel             chan *scraperModels.SpiderDoTask
+	taskDoneChannel                chan *scraperModels.SpiderDoTask
 	dynamicSemaphore               *utils.DynamicSemaphore
 	// protected locked values
 	fetchAllTime            utils.LockValue[int]
@@ -38,9 +37,8 @@ type APISpider struct {
 	singleTaskRetryDuration utils.RWLockValue[time.Duration]
 }
 
-func (s *APISpider) Init(fetchList []string, config *scraperModels.SpiderConfig) error {
-	// init fetch list
-	s.fetchList = fetchList
+func (s *APISpider) Init(fetchTaskList []*scraperModels.SpiderToDoTask, config *scraperModels.SpiderConfig) error {
+	s.fetchList = fetchTaskList
 	// init context
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	// init protected values
@@ -49,8 +47,8 @@ func (s *APISpider) Init(fetchList []string, config *scraperModels.SpiderConfig)
 	s.config = config
 	s.initialConcurrentTaskLimit = config.ConcurrentTaskLimit
 	s.initialSingleTaskRetryDuration = config.SingleTaskRetryDuration
-	s.taskPendingChannel = make(chan *scraperModels.SpiderTask, len(s.fetchList))
-	s.taskDoneChannel = make(chan *scraperModels.SpiderTask, len(s.fetchList))
+	s.taskPendingChannel = make(chan *scraperModels.SpiderDoTask, len(s.fetchList))
+	s.taskDoneChannel = make(chan *scraperModels.SpiderDoTask, len(s.fetchList))
 	s.dynamicSemaphore = &utils.DynamicSemaphore{
 		SetVal:     s.config.ConcurrentTaskLimit,
 		CurrentVal: 0,
@@ -79,8 +77,12 @@ func (s *APISpider) Start() error {
 	}
 	s.wg.Add(len(s.fetchList))
 	go func() {
-		for _, url := range s.fetchList {
-			s.taskPendingChannel <- &scraperModels.SpiderTask{Url: url, TotalRetries: 0, Success: false}
+		for _, task := range s.fetchList {
+			s.taskPendingChannel <- &scraperModels.SpiderDoTask{
+				TotalRetries: 0,
+				Success:      false,
+				SpiderTask:   task.SpiderTask,
+			}
 		}
 	}()
 	go func() {
@@ -89,7 +91,7 @@ func (s *APISpider) Start() error {
 				logrus.Error("Failed to acquire semaphore due to err", err)
 				return
 			}
-			go func(t *scraperModels.SpiderTask) {
+			go func(t *scraperModels.SpiderDoTask) {
 				defer func() {
 					s.dynamicSemaphore.Release()
 				}()
@@ -105,8 +107,8 @@ func (s *APISpider) Start() error {
 
 // WaitDone will block until all tasks are done
 // TODO: ctx to control lifecycle
-func (s *APISpider) WaitDone() ([]*scraperModels.SpiderTask, error) {
-	doneTasks := make([]*scraperModels.SpiderTask, 0)
+func (s *APISpider) WaitDone() ([]*scraperModels.SpiderDoTask, error) {
+	doneTasks := make([]*scraperModels.SpiderDoTask, 0)
 	if !s.initialized {
 		return doneTasks, log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
@@ -121,7 +123,7 @@ func (s *APISpider) WaitDone() ([]*scraperModels.SpiderTask, error) {
 	return doneTasks, nil
 }
 
-func (s *APISpider) httpRequest(task *scraperModels.SpiderTask) {
+func (s *APISpider) httpRequest(task *scraperModels.SpiderDoTask) {
 	for {
 		if task.TotalRetries > s.config.SingleTaskMaxRetriesTime {
 			logrus.Warning("Failed to fetch ", task.Url,
@@ -130,7 +132,7 @@ func (s *APISpider) httpRequest(task *scraperModels.SpiderTask) {
 			s.wg.Done()
 			return
 		}
-		resData, resError := s.httpClient.Get(task.Url)
+		resData, resError := s.httpClient.Get(task.Url, task.Headers, task.Cookies)
 		s.fetchAllTime.Set(s.fetchAllTime.Get() + 1)
 		task.TotalRetries++
 		if resError != nil {
@@ -154,6 +156,7 @@ func (s *APISpider) httpRequest(task *scraperModels.SpiderTask) {
 	}
 }
 
+// TODO: Use more flexible flow control algorithms
 func (s *APISpider) dynamicChangeFailTime() {
 	ticker := time.NewTicker(s.config.AdjustLimitCheckTime)
 	defer ticker.Stop()

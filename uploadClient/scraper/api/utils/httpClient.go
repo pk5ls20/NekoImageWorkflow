@@ -16,7 +16,6 @@ type httpClient interface {
 
 type HttpClient struct {
 	client httpClient
-	header string
 }
 
 func NewHttpClient() *HttpClient {
@@ -29,18 +28,24 @@ func NewHttpClient() *HttpClient {
 			},
 			Timeout: 10 * time.Second,
 		},
-		// TODO: separate this to a config file as a demo
-		header: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-			"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0",
 	}
 }
 
-func (c *HttpClient) Get(url string) ([]byte, error) {
+func (c *HttpClient) Get(url string, header map[string]string, cookie map[string]string) ([]byte, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", c.header)
+	if header != nil {
+		for k, v := range header {
+			req.Header.Set(k, v)
+		}
+	}
+	if cookie != nil {
+		for k, v := range cookie {
+			req.AddCookie(&http.Cookie{Name: k, Value: v})
+		}
+	}
 	resp, err := c.client.Do(req)
 	if resp.StatusCode != 200 {
 		return nil, log.ErrorWrap(errors.New(fmt.Sprintf("status code: %d", resp.StatusCode)))

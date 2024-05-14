@@ -33,8 +33,8 @@ type APIScraperConfig struct {
 }
 
 type APIScraperSourceConfig struct {
-	APIAddress           string   `mapstructure:"APIAddress"`
-	ParserJavaScriptFile string   `mapstructure:"ParserJavaScriptFile"`
-	OptionalHeaders      []string `mapstructure:"OptionalHeader"`
-	OptionalCookies      []string `mapstructure:"OptionalCookies"`
+	APIAddress           string            `mapstructure:"APIAddress"`
+	ParserJavaScriptFile string            `mapstructure:"ParserJavaScriptFile"`
+	OptionalHeaders      map[string]string `mapstructure:"OptionalHeader"`
+	OptionalCookies      map[string]string `mapstructure:"OptionalCookies"`
 }

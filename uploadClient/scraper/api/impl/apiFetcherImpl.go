@@ -17,7 +17,7 @@ type APIFetcher struct {
 	spiderConfig  *scraperModels.SpiderConfig
 	httpClient    *utils.HttpClient
 	apiImplConfig *[]config.APIScraperSourceConfig
-	fetchTaskList *[]model.FetcherTask
+	fetchTaskList *[]model.FetcherTaskList
 }
 
 func (a *APIFetcher) Init(cf *[]config.APIScraperSourceConfig) error {
@@ -26,39 +26,50 @@ func (a *APIFetcher) Init(cf *[]config.APIScraperSourceConfig) error {
 	a.apiImplConfig = cf
 	a.parser.Init()
 	a.httpClient = utils.NewHttpClient()
-	a.fetchTaskList = &[]model.FetcherTask{}
+	a.fetchTaskList = &[]model.FetcherTaskList{}
 	for _, c := range *cf {
 		if err := a.parser.RegisterParser(c.ParserJavaScriptFile); err != nil {
 			return log.ErrorWrap(err)
 		}
-		*a.fetchTaskList = append(*a.fetchTaskList, model.FetcherTask{
+		*a.fetchTaskList = append(*a.fetchTaskList, model.FetcherTaskList{
 			APIAddress:    c.APIAddress,
 			PasteFilePath: c.ParserJavaScriptFile,
+			Headers:       c.OptionalHeaders,
+			Cookies:       c.OptionalCookies,
 		})
 	}
 	logrus.Debug("APIFetcher initialized")
 	return nil
 }
 
-func (a *APIFetcher) FetchList() (url []string, err error) {
+func (a *APIFetcher) FetchList() ([]*scraperModels.SpiderToDoTask, error) {
 	logrus.Debug("APIFetcher Fetch start")
-	infoList := make([]string, 0)
-	for _, t := range *a.fetchTaskList {
-		res, _err := a.httpClient.Get(t.APIAddress)
-		if _err != nil {
-			return nil, log.ErrorWrap(_err)
+	var infoList []*scraperModels.SpiderToDoTask
+	for _, task := range *a.fetchTaskList {
+		response, err := a.httpClient.Get(task.APIAddress, task.Headers, task.Cookies)
+		if err != nil {
+			return nil, log.ErrorWrap(err)
 		}
-		rawJson := string(res)
-		parsed, _err := a.parser.ParseJson(rawJson, t.PasteFilePath)
-		if _err != nil {
-			return nil, log.ErrorWrap(_err)
+		rawJson := string(response)
+		parsedUrls, err := a.parser.ParseJson(rawJson, task.PasteFilePath)
+		if err != nil {
+			return nil, log.ErrorWrap(err)
 		}
-		infoList = append(infoList, parsed...)
+		for _, url := range parsedUrls {
+			newTask := &scraperModels.SpiderToDoTask{
+				SpiderTask: &scraperModels.SpiderTask{
+					Url:     url,
+					Headers: task.Headers,
+					Cookies: task.Cookies,
+				},
+			}
+			infoList = append(infoList, newTask)
+		}
 	}
 	return infoList, nil
 }
 
-func (a *APIFetcher) FetchContent(url []string) ([]*model.SpiderTask, error) {
+func (a *APIFetcher) FetchContent(task []*scraperModels.SpiderToDoTask) ([]*model.SpiderDoTask, error) {
 	logrus.Debug("APIFetcher FetchContent start")
 	a.spiderConfig = &scraperModels.SpiderConfig{
 		SingleTaskMaxRetriesTime:    5,
@@ -68,7 +79,7 @@ func (a *APIFetcher) FetchContent(url []string) ([]*model.SpiderTask, error) {
 		AdjustLimitRate:             0.3,
 		AdjustLimitCheckTime:        500 * time.Millisecond,
 	}
-	if err := a.spider.Init(url, a.spiderConfig); err != nil {
+	if err := a.spider.Init(task, a.spiderConfig); err != nil {
 		return nil, log.ErrorWrap(err)
 	}
 	if err := a.spider.Start(); err != nil {
