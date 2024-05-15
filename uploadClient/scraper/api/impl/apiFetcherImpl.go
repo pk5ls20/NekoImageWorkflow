@@ -21,7 +21,6 @@ type APIFetcher struct {
 }
 
 func (a *APIFetcher) Init(cf *[]config.APIScraperSourceConfig) error {
-	// TODO: load config cookie & header config
 	logrus.Debug("APIFetcher Init start")
 	a.apiImplConfig = cf
 	a.parser.Init()

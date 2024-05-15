@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"github.com/google/uuid"
 	_ "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	uuidTool "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
 	scraperModels "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
@@ -8,14 +9,13 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
 	"unsafe"
-
-	"github.com/google/uuid"
 )
 
 // uuid must contain, and contain only once
@@ -28,6 +28,12 @@ func containsOnce[T comparable](slice []T, a T) bool {
 }
 
 func TestAPISpiderWithMockServer(t *testing.T) {
+	defer func() {
+		if err := os.RemoveAll("_tmp"); err != nil {
+			logrus.Error("Error removing _tmp folder: ", err)
+		}
+		logrus.Info("tmp folder removed")
+	}()
 	var count int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		randVal := rand.Float64()
