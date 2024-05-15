@@ -22,11 +22,11 @@ type apiParser interface {
 	ParseJson(rawJson string, parserName string) ([]string, error)
 }
 
+// APIParser TODO: design it as global singleton?
 type APIParser struct {
 	apiParser
 	vm          *otto.Otto
 	mutex       sync.Mutex
-	once        sync.Once
 	parserMap   map[string]string
 	initialized bool
 }
@@ -44,6 +44,10 @@ func (a *APIParser) RegisterParser(jsFilePath string) error {
 	defer a.mutex.Unlock()
 	if !a.initialized {
 		return log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
+	}
+	if _, exists := a.parserMap[jsFilePath]; exists {
+		logrus.Debugf("Parser %s already exists, content is %s", jsFilePath, a.parserMap[jsFilePath])
+		return nil
 	}
 	file, err := os.Open(jsFilePath)
 	if err != nil {

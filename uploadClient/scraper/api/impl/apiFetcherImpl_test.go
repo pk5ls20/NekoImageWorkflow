@@ -53,11 +53,26 @@ var routeMap = func(prefix string) map[string]string {
 	}
 }
 
+func doFetch(fetcher *APIFetcher, cf []*config.APIScraperSourceConfig) error {
+	var err error
+	tasks, err := fetcher.FetchList(cf)
+	if err != nil {
+		err = fmt.Errorf("failed to fetch list: %v", err)
+	}
+	// FetchContent
+	contents, err := fetcher.FetchContent(tasks)
+	if err != nil {
+		err = fmt.Errorf("failed to fetch content: %v", err)
+	}
+	logrus.Info("Contents: ", contents)
+	return err
+}
+
 func TestAPIFetcherImpl_FetchList(t *testing.T) {
 	// init tempdir
-	tempDir, err := os.MkdirTemp("", "test")
-	if err != nil {
-		t.Fatalf("Failed to create temp directory: %v", err)
+	tempDir, _err := os.MkdirTemp("", "test")
+	if _err != nil {
+		t.Fatalf("Failed to create temp directory: %v", _err)
 	}
 	defer func(path string) {
 		if err := os.RemoveAll(path); err != nil {
@@ -93,14 +108,14 @@ func TestAPIFetcherImpl_FetchList(t *testing.T) {
 		t.Fatalf("Failed to write js2 to temp file: %v", err)
 	}
 	// init config
-	var cf []config.APIScraperSourceConfig
-	cf = append(cf, config.APIScraperSourceConfig{
+	var cf []*config.APIScraperSourceConfig
+	cf = append(cf, &config.APIScraperSourceConfig{
 		APIAddress:           ts.URL + "/json1",
 		ParserJavaScriptFile: jsFile1,
 		OptionalHeaders:      map[string]string{"User-Agent": "test"},
 		OptionalCookies:      map[string]string{"Cookie": "test"},
 	})
-	cf = append(cf, config.APIScraperSourceConfig{
+	cf = append(cf, &config.APIScraperSourceConfig{
 		APIAddress:           ts.URL + "/json2",
 		ParserJavaScriptFile: jsFile2,
 		OptionalHeaders:      map[string]string{"User-Agent": "test"},
@@ -108,19 +123,14 @@ func TestAPIFetcherImpl_FetchList(t *testing.T) {
 	})
 	// init fetcher
 	fetcher := &APIFetcher{}
-	if err := fetcher.Init(&cf); err != nil {
+	if err := doFetch(fetcher, cf); err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if err := fetcher.Init(); err != nil {
 		t.Fatalf("Failed to init fetcher: %v", err)
 	}
-	// FetchList
-	tasks, err := fetcher.FetchList()
-	if err != nil {
-		t.Fatalf("Failed to fetch list: %v", err)
+	if err := doFetch(fetcher, cf); err != nil {
+		t.Fatalf("don't expect error, got: %v", err)
 	}
-	// FetchContent
-	contents, err := fetcher.FetchContent(tasks)
-	if err != nil {
-		t.Fatalf("Failed to fetch content: %v", err)
-	}
-	logrus.Info("Contents: ", contents)
 	// TODO: check the fetched contents
 }

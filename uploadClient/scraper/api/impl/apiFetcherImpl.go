@@ -1,9 +1,10 @@
 package impl
 
 import (
+	"errors"
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
-	scraperModels "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
+	apiModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
+	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/utils"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
 	"github.com/sirupsen/logrus"
@@ -11,52 +12,52 @@ import (
 )
 
 type APIFetcher struct {
-	model.Fetcher
-	parser        APIParser
-	spider        APISpider
-	spiderConfig  *scraperModels.SpiderConfig
-	httpClient    *utils.HttpClient
-	apiImplConfig *[]config.APIScraperSourceConfig
-	fetchTaskList *[]model.FetcherTaskList
+	apiModel.Fetcher
+	fetchListParser     APIParser
+	fetchListHttpClient *utils.HttpClient
+	initialized         bool
 }
 
-func (a *APIFetcher) Init(cf *[]config.APIScraperSourceConfig) error {
+func (a *APIFetcher) Init() error {
 	logrus.Debug("APIFetcher Init start")
-	a.apiImplConfig = cf
-	a.parser.Init()
-	a.httpClient = utils.NewHttpClient()
-	a.fetchTaskList = &[]model.FetcherTaskList{}
-	for _, c := range *cf {
-		if err := a.parser.RegisterParser(c.ParserJavaScriptFile); err != nil {
-			return log.ErrorWrap(err)
+	a.fetchListParser.Init()
+	a.fetchListHttpClient = utils.NewHttpClient()
+	a.initialized = true
+	logrus.Debug("APIFetcher initialized")
+	return nil
+}
+
+func (a *APIFetcher) FetchList(cf []*config.APIScraperSourceConfig) ([]*scraperModel.SpiderToDoTask, error) {
+	if !a.initialized {
+		return nil, log.ErrorWrap(errors.New("APIFetcher not initialized"))
+	}
+	logrus.Debug("APIFetcher Fetch start")
+	var infoList []*scraperModel.SpiderToDoTask
+	var fetchTaskList []*apiModel.FetcherTaskList
+	for _, c := range cf {
+		if err := a.fetchListParser.RegisterParser(c.ParserJavaScriptFile); err != nil {
+			return infoList, log.ErrorWrap(err)
 		}
-		*a.fetchTaskList = append(*a.fetchTaskList, model.FetcherTaskList{
+		fetchTaskList = append(fetchTaskList, &apiModel.FetcherTaskList{
 			APIAddress:    c.APIAddress,
 			PasteFilePath: c.ParserJavaScriptFile,
 			Headers:       c.OptionalHeaders,
 			Cookies:       c.OptionalCookies,
 		})
 	}
-	logrus.Debug("APIFetcher initialized")
-	return nil
-}
-
-func (a *APIFetcher) FetchList() ([]*scraperModels.SpiderToDoTask, error) {
-	logrus.Debug("APIFetcher Fetch start")
-	var infoList []*scraperModels.SpiderToDoTask
-	for _, task := range *a.fetchTaskList {
-		response, err := a.httpClient.Get(task.APIAddress, task.Headers, task.Cookies)
+	for _, task := range fetchTaskList {
+		response, err := a.fetchListHttpClient.Get(task.APIAddress, task.Headers, task.Cookies)
 		if err != nil {
 			return nil, log.ErrorWrap(err)
 		}
 		rawJson := string(response)
-		parsedUrls, err := a.parser.ParseJson(rawJson, task.PasteFilePath)
+		parsedUrls, err := a.fetchListParser.ParseJson(rawJson, task.PasteFilePath)
 		if err != nil {
 			return nil, log.ErrorWrap(err)
 		}
 		for _, url := range parsedUrls {
-			newTask := &scraperModels.SpiderToDoTask{
-				SpiderTask: &scraperModels.SpiderTask{
+			newTask := &scraperModel.SpiderToDoTask{
+				SpiderTask: &scraperModel.SpiderTask{
 					Url:     url,
 					Headers: task.Headers,
 					Cookies: task.Cookies,
@@ -68,9 +69,13 @@ func (a *APIFetcher) FetchList() ([]*scraperModels.SpiderToDoTask, error) {
 	return infoList, nil
 }
 
-func (a *APIFetcher) FetchContent(task []*scraperModels.SpiderToDoTask) ([]*model.SpiderDoTask, error) {
+func (a *APIFetcher) FetchContent(task []*scraperModel.SpiderToDoTask) ([]*scraperModel.SpiderDoTask, error) {
+	if !a.initialized {
+		return nil, log.ErrorWrap(errors.New("APIFetcher not initialized"))
+	}
 	logrus.Debug("APIFetcher FetchContent start")
-	a.spiderConfig = &scraperModels.SpiderConfig{
+	spider := &APISpider{}
+	spiderConfig := &scraperModel.SpiderConfig{
 		SingleTaskMaxRetriesTime:    5,
 		SingleTaskRetryDuration:     1000 * time.Millisecond,
 		ConcurrentTaskLimit:         10,
@@ -78,13 +83,13 @@ func (a *APIFetcher) FetchContent(task []*scraperModels.SpiderToDoTask) ([]*mode
 		AdjustLimitRate:             0.3,
 		AdjustLimitCheckTime:        500 * time.Millisecond,
 	}
-	if err := a.spider.Init(task, a.spiderConfig); err != nil {
+	if err := spider.Init(task, spiderConfig); err != nil {
 		return nil, log.ErrorWrap(err)
 	}
-	if err := a.spider.Start(); err != nil {
+	if err := spider.Start(); err != nil {
 		return nil, log.ErrorWrap(err)
 	}
-	rs, err := a.spider.WaitDone()
+	rs, err := spider.WaitDone()
 	if err != nil {
 		return nil, log.ErrorWrap(err)
 	}
