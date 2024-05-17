@@ -4,7 +4,13 @@ import "sync"
 
 type LockValue[T any] struct {
 	Value T
-	Lock  *sync.Mutex
+	Lock  sync.Mutex
+}
+
+func NewLockValue[T any](value T) *LockValue[T] {
+	return &LockValue[T]{
+		Value: value,
+	}
 }
 
 func (lv *LockValue[T]) Get() T {
@@ -21,7 +27,13 @@ func (lv *LockValue[T]) Set(value T) {
 
 type RWLockValue[T any] struct {
 	Value T
-	Lock  *sync.RWMutex
+	Lock  sync.RWMutex
+}
+
+func NewRWLockValue[T any](value T) *RWLockValue[T] {
+	return &RWLockValue[T]{
+		Value: value,
+	}
 }
 
 func (lv *RWLockValue[T]) Get() T {

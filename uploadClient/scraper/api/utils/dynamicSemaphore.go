@@ -12,6 +12,14 @@ type DynamicSemaphore struct {
 	Cond       *sync.Cond
 }
 
+func NewDynamicSemaphore(setSize int) *DynamicSemaphore {
+	ds := &DynamicSemaphore{
+		SetVal: setSize,
+	}
+	ds.Cond = sync.NewCond(&ds.Mutex)
+	return ds
+}
+
 func (ds *DynamicSemaphore) Acquire(ctx context.Context) error {
 	ds.Mutex.Lock()
 	defer ds.Mutex.Unlock()

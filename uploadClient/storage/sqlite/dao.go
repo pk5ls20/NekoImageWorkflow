@@ -66,8 +66,7 @@ func FindDbDataModelByTag(id keyTag) ([]*dbDataStoredModel, error) {
 }
 
 func DeleteDbDataByTag(id keyTag) error {
-	err := checkDBInstance()
-	if err != nil {
+	if err := checkDBInstance(); err != nil {
 		return log.ErrorWrap(err)
 	}
 	err_ := dbInstance.Where("Tag = ?", id).Delete(&dbDataStoredModel{})

@@ -32,9 +32,9 @@ type APISpider struct {
 	taskDoneChannel                chan *scraperModels.SpiderDoTask
 	dynamicSemaphore               *utils.DynamicSemaphore
 	// protected locked values
-	fetchAllTime            utils.LockValue[int]
-	fetchSuccessTime        utils.LockValue[int]
-	singleTaskRetryDuration utils.RWLockValue[time.Duration]
+	fetchAllTime            *utils.LockValue[int]
+	fetchSuccessTime        *utils.LockValue[int]
+	singleTaskRetryDuration *utils.RWLockValue[time.Duration]
 }
 
 func (s *APISpider) Init(fetchTaskList []*scraperModels.SpiderToDoTask, config *scraperModels.SpiderConfig) error {
@@ -49,24 +49,11 @@ func (s *APISpider) Init(fetchTaskList []*scraperModels.SpiderToDoTask, config *
 	s.initialSingleTaskRetryDuration = config.SingleTaskRetryDuration
 	s.taskPendingChannel = make(chan *scraperModels.SpiderDoTask, len(s.fetchList))
 	s.taskDoneChannel = make(chan *scraperModels.SpiderDoTask, len(s.fetchList))
-	s.dynamicSemaphore = &utils.DynamicSemaphore{
-		SetVal:     s.config.ConcurrentTaskLimit,
-		CurrentVal: 0,
-	}
-	s.dynamicSemaphore.Cond = sync.NewCond(&s.dynamicSemaphore.Mutex)
+	s.dynamicSemaphore = utils.NewDynamicSemaphore(config.ConcurrentTaskLimit)
 	// init protected locked values
-	s.fetchAllTime = utils.LockValue[int]{
-		Value: 0,
-		Lock:  &sync.Mutex{},
-	}
-	s.fetchSuccessTime = utils.LockValue[int]{
-		Value: 0,
-		Lock:  &sync.Mutex{},
-	}
-	s.singleTaskRetryDuration = utils.RWLockValue[time.Duration]{
-		Value: config.SingleTaskRetryDuration,
-		Lock:  &sync.RWMutex{},
-	}
+	s.fetchAllTime = utils.NewLockValue[int](0)
+	s.fetchSuccessTime = utils.NewLockValue[int](0)
+	s.singleTaskRetryDuration = utils.NewRWLockValue[time.Duration](s.initialSingleTaskRetryDuration)
 	s.initialized = true
 	return nil
 }
@@ -92,9 +79,7 @@ func (s *APISpider) Start() error {
 				return
 			}
 			go func(t *scraperModels.SpiderDoTask) {
-				defer func() {
-					s.dynamicSemaphore.Release()
-				}()
+				defer s.dynamicSemaphore.Release()
 				logrus.Debug("Start to fetch ", t.Url)
 				s.httpRequest(t)
 				time.Sleep(s.config.ConcurrentTaskGroupDuration)
