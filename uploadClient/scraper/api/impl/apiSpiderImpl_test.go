@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"context"
 	"github.com/google/uuid"
 	_ "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	uuidTool "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
@@ -27,6 +28,51 @@ func containsOnce[T comparable](slice []T, a T) bool {
 	return countMap[a] == 1
 }
 
+func realTest(t *testing.T, spider *APISpider, tasks []*scraperModels.SpiderToDoTask,
+	config *scraperModels.SpiderConfig, expectedUUID []uuid.UUID, expTime time.Duration) {
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := spider.Init(tasks, config, ctx, cancel); err != nil {
+		t.Error(err)
+	}
+	if err := spider.Start(); err != nil {
+		t.Error(err)
+	}
+	// cancel after expTime
+	go func() {
+		time.Sleep(expTime)
+		if err := spider.Cancel(); err != nil {
+			return
+		}
+	}()
+	rs, err := spider.WaitDone()
+	if err != nil {
+		t.Error(err)
+	}
+	expectedResultCount := len(tasks)
+	actualResultCount := len(rs)
+	if actualResultCount != expectedResultCount {
+		t.Errorf("Expected %d successful tasks, but got %d", expectedResultCount, actualResultCount)
+	}
+	for i, result := range rs {
+		if result.Success {
+			val := reflect.ValueOf(&result.FetchData).Elem()
+			fileUUIDField := val.FieldByName("fileUUID")
+			if !fileUUIDField.IsValid() {
+				t.Errorf("Task %d: field 'fileUUID' not found", i)
+				continue
+			}
+			// TODO: Since the final form of the UploadFileDataModel is undetermined,
+			//  we'll first force it to get its fileUUID as an under-exported field here
+			fileUUID := reflect.NewAt(fileUUIDField.Type(),
+				unsafe.Pointer(fileUUIDField.UnsafeAddr())).Elem().Interface().(uuid.UUID)
+			if !containsOnce(expectedUUID, fileUUID) {
+				t.Errorf("Task %d: fileUUID not found in expectedUUID or contain > 1", i)
+			}
+		}
+	}
+	logrus.Info("Total success tasks: ", actualResultCount)
+}
+
 func TestAPISpiderWithMockServer(t *testing.T) {
 	defer func() {
 		if err := os.RemoveAll("_tmp"); err != nil {
@@ -46,7 +92,6 @@ func TestAPISpiderWithMockServer(t *testing.T) {
 			w.WriteHeader(http.StatusRequestTimeout)
 			return
 		}
-
 		userAgent := r.Header.Get("User-Agent")
 		testCookie, err := r.Cookie("TestCookie")
 		if err != nil {
@@ -89,42 +134,19 @@ func TestAPISpiderWithMockServer(t *testing.T) {
 	}
 	// first, not init
 	if err := spider.Start(); err == nil {
-		t.Error("Should not Start without init")
+		t.Error("Should not Started without init")
+	}
+	if err := spider.Cancel(); err == nil {
+		t.Error("Should not Canceled without init")
 	}
 	if _, err := spider.WaitDone(); err == nil {
 		t.Error("Should not WaitDone without init")
 	}
-	if err := spider.Init(tasks, config); err != nil {
-		t.Error(err)
-	}
-	if err := spider.Start(); err != nil {
-		t.Error(err)
-	}
-	rs, err := spider.WaitDone()
-	if err != nil {
-		t.Error(err)
-	}
-	expectedResultCount := len(tasks)
-	actualResultCount := len(rs)
-	if actualResultCount != expectedResultCount {
-		t.Errorf("Expected %d successful tasks, but got %d", expectedResultCount, actualResultCount)
-	}
-	for i, result := range rs {
-		if result.Success {
-			val := reflect.ValueOf(&result.FetchData).Elem()
-			fileUUIDField := val.FieldByName("fileUUID")
-			if !fileUUIDField.IsValid() {
-				t.Errorf("Task %d: field 'fileUUID' not found", i)
-				continue
-			}
-			// TODO: Since the final form of the UploadFileDataModel is undetermined,
-			//  we'll first force it to get its fileUUID as an under-exported field here
-			fileUUID := reflect.NewAt(fileUUIDField.Type(),
-				unsafe.Pointer(fileUUIDField.UnsafeAddr())).Elem().Interface().(uuid.UUID)
-			if !containsOnce(expectedUUID, fileUUID) {
-				t.Errorf("Task %d: fileUUID not found in expectedUUID or contain > 1", i)
-			}
-		}
-	}
-	logrus.Info("Total success tasks: ", actualResultCount)
+	realTest(t, &APISpider{}, tasks, config, expectedUUID, 1*time.Microsecond)
+	realTest(t, &APISpider{}, tasks, config, expectedUUID, 1*time.Millisecond)
+	realTest(t, &APISpider{}, tasks, config, expectedUUID, 1*time.Second)
+	realTest(t, &APISpider{}, tasks, config, expectedUUID, 10*time.Second)
+	realTest(t, &APISpider{}, tasks, config, expectedUUID, 30*time.Second)
+	realTest(t, &APISpider{}, tasks, config, expectedUUID, 60*time.Second)
+	realTest(t, &APISpider{}, tasks, config, expectedUUID, 114514*time.Hour) // never timeout
 }

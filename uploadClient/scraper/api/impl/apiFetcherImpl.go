@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"context"
 	"errors"
 	"github.com/pk5ls20/NekoImageWorkflow/common/log"
 	apiModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
@@ -83,7 +84,8 @@ func (a *APIFetcher) FetchContent(task []*scraperModel.SpiderToDoTask) ([]*scrap
 		AdjustLimitRate:             0.3,
 		AdjustLimitCheckTime:        500 * time.Millisecond,
 	}
-	if err := spider.Init(task, spiderConfig); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	if err := spider.Init(task, spiderConfig, ctx, cancel); err != nil {
 		return nil, log.ErrorWrap(err)
 	}
 	if err := spider.Start(); err != nil {

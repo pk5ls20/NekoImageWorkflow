@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	"time"
 )
@@ -28,8 +29,9 @@ type SpiderDoTask struct {
 }
 
 type Spider interface {
-	Init(fetchTaskList []*SpiderToDoTask, config *SpiderConfig) error
+	Init(fetchTaskList []*SpiderToDoTask, config *SpiderConfig, ctx context.Context, cancel context.CancelFunc) error
 	Start() error
+	Cancel() error
 	WaitDone() ([]*SpiderDoTask, error)
 	httpRequest(task *SpiderDoTask)
 }

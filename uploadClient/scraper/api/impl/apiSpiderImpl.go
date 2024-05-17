@@ -34,13 +34,15 @@ type APISpider struct {
 	// protected locked values
 	fetchAllTime            *utils.LockValue[int]
 	fetchSuccessTime        *utils.LockValue[int]
+	concurrentTaskLimit     *utils.RWLockValue[int]
 	singleTaskRetryDuration *utils.RWLockValue[time.Duration]
 }
 
-func (s *APISpider) Init(fetchTaskList []*scraperModels.SpiderToDoTask, config *scraperModels.SpiderConfig) error {
+func (s *APISpider) Init(fetchTaskList []*scraperModels.SpiderToDoTask, config *scraperModels.SpiderConfig,
+	ctx context.Context, cancel context.CancelFunc) error {
 	s.fetchList = fetchTaskList
 	// init context
-	s.ctx, s.cancel = context.WithCancel(context.Background())
+	s.ctx, s.cancel = ctx, cancel
 	// init protected values
 	s.wg = sync.WaitGroup{}
 	s.httpClient = utils.NewHttpClient()
@@ -53,6 +55,7 @@ func (s *APISpider) Init(fetchTaskList []*scraperModels.SpiderToDoTask, config *
 	// init protected locked values
 	s.fetchAllTime = utils.NewLockValue[int](0)
 	s.fetchSuccessTime = utils.NewLockValue[int](0)
+	s.concurrentTaskLimit = utils.NewRWLockValue[int](s.initialConcurrentTaskLimit)
 	s.singleTaskRetryDuration = utils.NewRWLockValue[time.Duration](s.initialSingleTaskRetryDuration)
 	s.initialized = true
 	return nil
@@ -74,70 +77,96 @@ func (s *APISpider) Start() error {
 	}()
 	go func() {
 		for pdTask := range s.taskPendingChannel {
-			if err := s.dynamicSemaphore.Acquire(context.Background()); err != nil {
-				logrus.Error("Failed to acquire semaphore due to err", err)
-				return
+			select {
+			case <-s.ctx.Done():
+				logrus.Debug("Stopping Start due to context cancellation.")
+				s.taskDoneChannel <- pdTask
+				s.wg.Done()
+			default:
+				if err := s.dynamicSemaphore.Acquire(s.ctx); err != nil {
+					logrus.Error("Failed to acquire semaphore due to err", err)
+					return
+				}
+				go func(t *scraperModels.SpiderDoTask) {
+					defer s.dynamicSemaphore.Release()
+					logrus.Debug("Start to fetch ", t.Url)
+					s.httpRequest(t)
+					time.Sleep(s.config.ConcurrentTaskGroupDuration)
+				}(pdTask)
 			}
-			go func(t *scraperModels.SpiderDoTask) {
-				defer s.dynamicSemaphore.Release()
-				logrus.Debug("Start to fetch ", t.Url)
-				s.httpRequest(t)
-				time.Sleep(s.config.ConcurrentTaskGroupDuration)
-			}(pdTask)
 		}
 	}()
 	go s.dynamicChangeFailTime()
 	return nil
 }
 
-// WaitDone will block until all tasks are done
-// TODO: ctx to control lifecycle
+// Cancel will directly cancel all tasks, means WaitDone stops being blocked and return all results
+func (s *APISpider) Cancel() error {
+	if !s.initialized {
+		return log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
+	}
+	logrus.Infof("Task Done triggered, having %d tasks left, %d tasks done",
+		len(s.taskPendingChannel), len(s.taskDoneChannel))
+	s.cancel()
+	return nil
+}
+
+// WaitDone return all results, will block until all tasks are done except manually Cancel
 func (s *APISpider) WaitDone() ([]*scraperModels.SpiderDoTask, error) {
 	doneTasks := make([]*scraperModels.SpiderDoTask, 0)
 	if !s.initialized {
 		return doneTasks, log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
 	s.wg.Wait()
-	s.cancel()
+	if err := s.Cancel(); err != nil {
+		return nil, err
+	}
 	close(s.taskPendingChannel)
 	close(s.taskDoneChannel)
 	for t := range s.taskDoneChannel {
 		doneTasks = append(doneTasks, t)
 	}
-	logrus.Info("All tasks done, total tasks: ", len(doneTasks))
 	return doneTasks, nil
 }
 
 func (s *APISpider) httpRequest(task *scraperModels.SpiderDoTask) {
 	for {
-		if task.TotalRetries > s.config.SingleTaskMaxRetriesTime {
-			logrus.Warning("Failed to fetch ", task.Url,
-				" after ", s.config.SingleTaskMaxRetriesTime, " retries")
+		select {
+		case <-s.ctx.Done():
+			logrus.Debug("Stopping httpRequest due to context cancellation.")
 			s.taskDoneChannel <- task
 			s.wg.Done()
 			return
+		default:
+			if task.TotalRetries > s.config.SingleTaskMaxRetriesTime {
+				logrus.Warning("Failed to fetch ", task.Url,
+					" after ", s.config.SingleTaskMaxRetriesTime, " retries")
+				s.taskDoneChannel <- task
+				s.wg.Done()
+				return
+			}
+			resData, resError := s.httpClient.Get(task.Url, task.Headers, task.Cookies)
+			s.fetchAllTime.Set(s.fetchAllTime.Get() + 1)
+			task.TotalRetries++
+			if resError != nil {
+				logrus.Errorf("Failed to fetch %s due to err: %v", task.Url, resError)
+				time.Sleep(s.singleTaskRetryDuration.Get())
+				continue
+			}
+			if fetchData, err := model.NewScraperUploadTempFileData(commonModel.APIScraperType, resData); err != nil {
+				logrus.Errorf("Failed to create temp file data due to err: %v", err)
+				time.Sleep(s.singleTaskRetryDuration.Get())
+				continue
+			} else {
+				task.FetchData = *fetchData
+			}
+			task.Success = true
+			logrus.Infof("Successfully fetched %s", task.Url)
+			s.taskDoneChannel <- task
+			s.wg.Done()
+			s.fetchSuccessTime.Set(s.fetchSuccessTime.Get() + 1)
+			return
 		}
-		resData, resError := s.httpClient.Get(task.Url, task.Headers, task.Cookies)
-		s.fetchAllTime.Set(s.fetchAllTime.Get() + 1)
-		task.TotalRetries++
-		if resError != nil {
-			logrus.Errorf("Failed to fetch %s due to err: %v", task.Url, resError)
-			time.Sleep(s.singleTaskRetryDuration.Get())
-			continue
-		}
-		if fetchData, err := model.NewScraperUploadTempFileData(commonModel.APIScraperType, resData); err != nil {
-			logrus.Errorf("Failed to create temp file data due to err: %v", err)
-			time.Sleep(s.singleTaskRetryDuration.Get())
-			continue
-		} else {
-			task.FetchData = *fetchData
-		}
-		task.Success = true
-		logrus.Infof("Successfully fetched %s", task.Url)
-		s.taskDoneChannel <- task
-		s.wg.Done()
-		s.fetchSuccessTime.Set(s.fetchSuccessTime.Get() + 1)
-		return
 	}
 }
 
@@ -148,7 +177,7 @@ func (s *APISpider) dynamicChangeFailTime() {
 	for {
 		select {
 		case <-s.ctx.Done():
-			logrus.Warning("Stopping dynamicChangeFailTime due to context cancellation.")
+			logrus.Debug("Stopping dynamicChangeFailTime due to context cancellation.")
 			return
 		case <-ticker.C:
 			logrus.Info("Initial goroutines:", runtime.NumGoroutine())
@@ -164,12 +193,12 @@ func (s *APISpider) dynamicChangeFailTime() {
 					ori.String(), set.String())
 				s.singleTaskRetryDuration.Set(set)
 				// set concurrent task limit
-				oriLimit := s.config.ConcurrentTaskLimit
-				decrementLimit := int(float64(s.config.ConcurrentTaskLimit) * 0.9)
+				oriLimit := s.concurrentTaskLimit.Get()
+				decrementLimit := int(float64(oriLimit) * 0.9)
 				setLimit := max(decrementLimit, int(float64(s.initialConcurrentTaskLimit)*0.5))
 				logrus.Warningf("Fail rate is too high, decrease concurrent task limit from %d -> %d",
 					oriLimit, setLimit)
-				s.config.ConcurrentTaskLimit = setLimit
+				s.concurrentTaskLimit.Set(setLimit)
 				s.dynamicSemaphore.AdjustSize(setLimit)
 			} else {
 				// set fail task wait time
@@ -180,12 +209,12 @@ func (s *APISpider) dynamicChangeFailTime() {
 					ori.String(), set.String())
 				s.singleTaskRetryDuration.Set(set)
 				// set concurrent task limit
-				oriLimit := s.config.ConcurrentTaskLimit
-				incrementLimit := int(float64(s.config.ConcurrentTaskLimit) * 1.1)
+				oriLimit := s.concurrentTaskLimit.Get()
+				incrementLimit := int(float64(oriLimit) * 1.1)
 				setLimit := min(incrementLimit, int(float64(s.initialConcurrentTaskLimit)*1.5))
 				logrus.Warningf("Fail rate is normal, increase concurrent task limit from %d -> %d",
 					oriLimit, setLimit)
-				s.config.ConcurrentTaskLimit = setLimit
+				s.concurrentTaskLimit.Set(setLimit)
 				s.dynamicSemaphore.AdjustSize(setLimit)
 			}
 		}
