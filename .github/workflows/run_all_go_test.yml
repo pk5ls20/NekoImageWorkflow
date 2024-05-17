@@ -11,6 +11,8 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.21.1
+      - name: Run go vet on uploadClient
+        run: cd uploadClient && go vet ./...
       - name: Run go test on uploadClient
         run: cd uploadClient && go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
       - name: Upload coverage to Codecov
