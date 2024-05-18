@@ -93,7 +93,7 @@ func NewScraperUploadFileData(scType model.ScraperType, filePath string) (*Uploa
 }
 
 func NewScraperUploadTempFileData(scType model.ScraperType, fileContent []byte) (*UploadFileDataModel, error) {
-	t := &tmp.TmpFile{}
+	t := tmp.NewTmpFile()
 	filePath, fileUUID, err := t.Create(fileContent, ".tmp")
 	if err != nil {
 		return nil, log.ErrorWrap(err)
