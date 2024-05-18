@@ -1,20 +1,20 @@
 package config
 
 import (
-	"github.com/pk5ls20/NekoImageWorkflow/common/model"
+	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 )
 
 type ConfigWrapper struct {
 	ClientConfig ClientConfig `mapstructure:"clientconfig" json:"clientconfig"`
 }
 
-type ScraperList map[model.ScraperType][]Scraper
+type ScraperList map[commonModel.ScraperType][]Scraper
 
 type ClientConfig struct {
 	ClientRegisterAddress string      `mapstructure:"ClientRegisterAddress" json:"ClientRegisterAddress"`
 	ConsulAddress         string      `mapstructure:"ConsulAddress" json:"ConsulAddress"`
 	PostUploadPeriod      int         `mapstructure:"PostUploadPeriod" json:"PostUploadPeriod"`
-	Scraper               ScraperList `mapstructure:"Scraper" json:"Scraper"`
+	Scraper               ScraperList `mapstructure:"scraper" json:"scraper"`
 }
 
 type Scraper interface {

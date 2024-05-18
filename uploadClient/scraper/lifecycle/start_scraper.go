@@ -1,12 +1,12 @@
 package lifecycle
 
 import (
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
+	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
 	"github.com/sirupsen/logrus"
 	"sync"
 )
 
-func StartScraper(scp []model.Scraper) {
+func StartScraper(scp []scraperModel.Scraper) {
 	for _, scraperInstance := range scp {
 		var wg sync.WaitGroup
 		instance := scraperInstance

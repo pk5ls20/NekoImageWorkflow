@@ -1,6 +1,9 @@
 package model
 
-import "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
+import (
+	"context"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
+)
 
 type FetcherTaskList struct {
 	APIAddress    string
@@ -12,7 +15,7 @@ type FetcherTaskList struct {
 // Fetcher is the interface for fetching data from API, include parser
 type Fetcher interface {
 	// Init initialize the fetcher
-	Init() error
+	Init(scID int) error
 	FetchList(cf []*config.APIScraperSourceConfig) (task []*SpiderToDoTask, err error)
-	FetchContent(task []*SpiderToDoTask) ([]*SpiderDoTask, error)
+	FetchContent(task []*SpiderToDoTask, ctx context.Context, cancel context.CancelFunc) ([]*SpiderDoTask, error)
 }

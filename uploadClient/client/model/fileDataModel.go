@@ -3,10 +3,10 @@ package model
 
 import (
 	"github.com/google/uuid"
-	"github.com/pk5ls20/NekoImageWorkflow/common/log"
-	"github.com/pk5ls20/NekoImageWorkflow/common/model"
-	uuidTool "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/tmp"
+	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
+	commonUUID "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
+	tmpStorage "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/tmp"
 	"github.com/sirupsen/logrus"
 	"os"
 )
@@ -20,6 +20,7 @@ type FileDataModel interface {
 	// calculateUUID is a function that calculates the UUID of the resourceUri / file
 	// only call in the constructor
 	calculateUUID() error
+	GetScraperID() int
 	// PrepareUpload is a function that prepares the data for upload, wait to implement
 	// TODO: maybe, here can transform the FileDataModel itself to model which adapt to kitexClient proto
 	PrepareUpload() error
@@ -32,7 +33,8 @@ type FileDataModel interface {
 // resourceUri resource uri, maybe file path (local) or file url (API)
 type PreUploadFileDataModel struct {
 	FileDataModel
-	scraperType  model.ScraperType
+	scraperType  commonModel.ScraperType
+	scraperID    int
 	resourceUUID uuid.UUID
 	resourceUri  string
 }
@@ -40,69 +42,80 @@ type PreUploadFileDataModel struct {
 // UploadFileDataModel
 // fileUUID Used to uniquely identify the uploaded file
 // filePath The actual path of the file locally
-// TODO: add a reference counter for TempFile
 type UploadFileDataModel struct {
 	FileDataModel
-	scraperType model.ScraperType
-	isTempFile  bool
+	scraperType commonModel.ScraperType
+	scraperID   int
 	fileUUID    uuid.UUID
 	filePath    string
+	isTempFile  bool
 }
 
 func (s *PreUploadFileDataModel) calculateUUID() error {
-	_uuid := uuidTool.GenerateStrUUID(s.resourceUri)
+	_uuid := commonUUID.GenerateStrUUID(s.resourceUri)
 	s.resourceUUID = _uuid
 	return nil
 }
 
+func (s *PreUploadFileDataModel) GetScraperID() int {
+	return s.scraperID
+}
+
 func (s *UploadFileDataModel) calculateUUID() error {
-	_uuid, err := uuidTool.GenerateFileUUID(s.filePath)
+	_uuid, err := commonUUID.GenerateFileUUID(s.filePath)
 	if err != nil {
-		return log.ErrorWrap(err)
+		return commonLog.ErrorWrap(err)
 	}
 	s.fileUUID = _uuid
 	return nil
+}
+
+func (s *UploadFileDataModel) GetScraperID() int {
+	return s.scraperID
 }
 
 func (s *UploadFileDataModel) FinishUpload() error {
 	if s.isTempFile {
 		logrus.Debug("Delete temp file: ", s.filePath)
 		if err := os.Remove(s.filePath); err != nil {
-			return log.ErrorWrap(err)
+			return commonLog.ErrorWrap(err)
 		}
 	}
 	return nil
 }
 
-func NewScraperPreUploadFileData(scType model.ScraperType, uri string) (*PreUploadFileDataModel, error) {
+func NewScraperPreUploadFileData(scType commonModel.ScraperType, scID int, uri string) (*PreUploadFileDataModel, error) {
 	m := &PreUploadFileDataModel{
 		scraperType: scType,
 		resourceUri: uri,
+		scraperID:   scID,
 	}
 	err := m.calculateUUID()
 	return m, err
 }
 
-func NewScraperUploadFileData(scType model.ScraperType, filePath string) (*UploadFileDataModel, error) {
+func NewScraperUploadFileData(scType commonModel.ScraperType, scID int, filePath string) (*UploadFileDataModel, error) {
 	m := &UploadFileDataModel{
 		scraperType: scType,
 		filePath:    filePath,
+		scraperID:   scID,
 	}
 	err := m.calculateUUID()
 	return m, err
 }
 
-func NewScraperUploadTempFileData(scType model.ScraperType, fileContent []byte) (*UploadFileDataModel, error) {
-	t := tmp.NewTmpFile()
+func NewScraperUploadTempFileData(scType commonModel.ScraperType, scID int, fileContent []byte) (*UploadFileDataModel, error) {
+	t := tmpStorage.NewTmpFile()
 	filePath, fileUUID, err := t.Create(fileContent, ".tmp")
 	if err != nil {
-		return nil, log.ErrorWrap(err)
+		return nil, commonLog.ErrorWrap(err)
 	}
 	m := &UploadFileDataModel{
 		scraperType: scType,
 		filePath:    filePath,
 		isTempFile:  true,
 		fileUUID:    fileUUID,
+		scraperID:   scID,
 	}
 	return m, nil
 }

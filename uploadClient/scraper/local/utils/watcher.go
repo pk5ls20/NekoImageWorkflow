@@ -3,17 +3,17 @@ package utils
 import (
 	"fmt"
 	"github.com/fsnotify/fsnotify"
-	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
+	storageQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
 	"github.com/sirupsen/logrus"
 )
 
-func NewWatcher(watchFolders []string) error {
+func NewWatcher(scID int, watchFolders []string) error {
 	watcher, watcherErr := fsnotify.NewWatcher()
 	if watcherErr != nil {
-		return log.ErrorWrap(watcherErr)
+		return commonLog.ErrorWrap(watcherErr)
 	}
 	defer func(watcher *fsnotify.Watcher) {
 		if err_ := watcher.Close(); err_ != nil {
@@ -21,7 +21,7 @@ func NewWatcher(watchFolders []string) error {
 		}
 	}(watcher)
 	go func() {
-		preUploadQueue := queue.GetPreUploadQueue()
+		preUploadQueue := storageQueue.GetPreUploadQueue()
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -31,7 +31,7 @@ func NewWatcher(watchFolders []string) error {
 				logrus.Debug("event:", event)
 				if event.Has(fsnotify.Create) {
 					logrus.Debug("create file:", event.Name)
-					d, err := clientModel.NewScraperPreUploadFileData(commonModel.LocalScraperType, event.Name)
+					d, err := clientModel.NewScraperPreUploadFileData(commonModel.LocalScraperType, scID, event.Name)
 					if err != nil {
 						logrus.Errorf("Failed to create ScraperPreUploadFileData: %v", err)
 						continue

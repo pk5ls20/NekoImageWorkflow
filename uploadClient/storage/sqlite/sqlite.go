@@ -3,8 +3,8 @@ package sqlite
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
-	fileQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
+	storageQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -24,7 +24,7 @@ var (
 var dbName = "client_data.db"
 
 // InitSqlite TODO: impl tx
-// InitSqlite Initialises the database and writes the residual buffered data within the database to fileQueue
+// InitSqlite Initialises the database and writes the residual buffered data within the database to storageQueue
 func InitSqlite() {
 	initDBOnce.Do(func() {
 		// 1. load (and create if not exists) sqlite database
@@ -51,11 +51,11 @@ func InitSqlite() {
 		for i, data := range receiveData {
 			tmpBytes[i] = data.Data
 		}
-		decodedReceiveData, err := decodeDataBatch[model.FileDataModel](tmpBytes)
+		decodedReceiveData, err := decodeDataBatch[clientModel.FileDataModel](tmpBytes)
 		if err != nil {
 			logrus.Fatal(err)
 		}
-		receiveDataToQueue[model.FileDataModel](decodedReceiveData)
+		receiveDataToQueue[clientModel.FileDataModel](decodedReceiveData)
 		// 3. delete data from sqlite
 		if err_ := DeleteDbDataByTag(QueueDataTag); err_ != nil {
 			logrus.Fatal(err_)
@@ -64,7 +64,7 @@ func InitSqlite() {
 }
 
 // CloseSqlite TODO: impl tx
-// CloseSqlite Securely close the database and write the contents of fileQueue
+// CloseSqlite Securely close the database and write the contents of storageQueue
 func CloseSqlite() {
 	if dbInstance != nil {
 		pushQueueData()
@@ -97,18 +97,18 @@ func LoadClientUUID() (uuid.UUID, error) {
 }
 
 // TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
-func receiveDataToQueue[T model.FileDataModel](data []*dbData[T]) {
-	ia := fileQueue.GetPreUploadQueue()
-	ib := fileQueue.GetUploadQueue()
-	iaList := make([]*model.PreUploadFileDataModel, 0)
-	ibList := make([]*model.UploadFileDataModel, 0)
+func receiveDataToQueue[T clientModel.FileDataModel](data []*dbData[T]) {
+	ia := storageQueue.GetPreUploadQueue()
+	ib := storageQueue.GetUploadQueue()
+	iaList := make([]*clientModel.PreUploadFileDataModel, 0)
+	ibList := make([]*clientModel.UploadFileDataModel, 0)
 	for _, d := range data {
 		v := reflect.ValueOf(d.Data)
 		switch v.Elem().Interface().(type) {
-		case model.PreUploadFileDataModel:
-			iaList = append(iaList, v.Interface().(*model.PreUploadFileDataModel))
-		case model.UploadFileDataModel:
-			ibList = append(ibList, v.Interface().(*model.UploadFileDataModel))
+		case clientModel.PreUploadFileDataModel:
+			iaList = append(iaList, v.Interface().(*clientModel.PreUploadFileDataModel))
+		case clientModel.UploadFileDataModel:
+			ibList = append(ibList, v.Interface().(*clientModel.UploadFileDataModel))
 		default:
 			logrus.Error(fmt.Sprintf("Unknown type: %s", v.Elem().Type().Name()))
 		}
@@ -128,24 +128,24 @@ func receiveDataToQueue[T model.FileDataModel](data []*dbData[T]) {
 func pushQueueData() {
 	// TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
 	// PreUploadFileDataModel
-	preUploadQueue := fileQueue.GetPreUploadQueue()
+	preUploadQueue := storageQueue.GetPreUploadQueue()
 	if preUploadQueue != nil {
 		tmpData, _ := preUploadQueue.PopAll()
-		tmpDBData := make([]*dbData[model.FileDataModel], len(tmpData))
+		tmpDBData := make([]*dbData[clientModel.FileDataModel], len(tmpData))
 		for i, data := range tmpData {
-			tmpDBData[i] = &dbData[model.FileDataModel]{Tag: QueueDataTag, Data: data}
+			tmpDBData[i] = &dbData[clientModel.FileDataModel]{Tag: QueueDataTag, Data: data}
 		}
 		if err := InsertBatchDbData(tmpDBData); err != nil {
 			logrus.Error(err)
 		}
 	}
 	// UploadFileDataModel
-	postUploadQueue := fileQueue.GetUploadQueue()
+	postUploadQueue := storageQueue.GetUploadQueue()
 	if postUploadQueue != nil {
 		tmpData, _ := postUploadQueue.PopAll()
-		tmpDBData := make([]*dbData[model.FileDataModel], len(tmpData))
+		tmpDBData := make([]*dbData[clientModel.FileDataModel], len(tmpData))
 		for i, data := range tmpData {
-			tmpDBData[i] = &dbData[model.FileDataModel]{Tag: QueueDataTag, Data: data}
+			tmpDBData[i] = &dbData[clientModel.FileDataModel]{Tag: QueueDataTag, Data: data}
 		}
 		if err := InsertBatchDbData(tmpDBData); err != nil {
 			logrus.Error(err)

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	"io/fs"
 	"path/filepath"
 )
@@ -11,7 +11,7 @@ func WalkDir(rootPath string) (*[]string, error) {
 	dirs = append(dirs, rootPath)
 	walkDirErr := filepath.WalkDir(rootPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return log.ErrorWrap(err)
+			return commonLog.ErrorWrap(err)
 		}
 		if d.IsDir() {
 			dirs = append(dirs, path)
@@ -19,7 +19,7 @@ func WalkDir(rootPath string) (*[]string, error) {
 		return nil
 	})
 	if walkDirErr != nil {
-		return nil, log.ErrorWrap(walkDirErr)
+		return nil, commonLog.ErrorWrap(walkDirErr)
 	}
 	return &dirs, nil
 }

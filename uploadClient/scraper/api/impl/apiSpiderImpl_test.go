@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	_ "github.com/pk5ls20/NekoImageWorkflow/common/log"
-	uuidTool "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
+	commonUUID "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
 	scraperModels "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
 	"github.com/sirupsen/logrus"
 	"math/rand"
@@ -54,9 +54,10 @@ func realTest(t *testing.T, spider *APISpider, tasks []*scraperModels.SpiderToDo
 	if actualResultCount != expectedResultCount {
 		t.Errorf("Expected %d successful tasks, but got %d", expectedResultCount, actualResultCount)
 	}
+	//TODO: add test for scraperID
 	for i, result := range rs {
 		if result.Success {
-			val := reflect.ValueOf(&result.FetchData).Elem()
+			val := reflect.ValueOf(result.FetchData).Elem()
 			fileUUIDField := val.FieldByName("fileUUID")
 			if !fileUUIDField.IsValid() {
 				t.Errorf("Task %d: field 'fileUUID' not found", i)
@@ -128,7 +129,7 @@ func TestAPISpiderWithMockServer(t *testing.T) {
 			},
 		}
 		fileContent := "User-Agent: " + userAgent + ", TestCookie: " + testCookie
-		expectedUUID[i] = uuidTool.GenerateStrUUID(fileContent)
+		expectedUUID[i] = commonUUID.GenerateStrUUID(fileContent)
 	}
 	config := &scraperModels.SpiderConfig{
 		SingleTaskMaxRetriesTime:    1,

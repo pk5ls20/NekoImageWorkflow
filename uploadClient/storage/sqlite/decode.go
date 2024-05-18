@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"github.com/google/uuid"
-	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 )
 
@@ -21,7 +21,7 @@ func decodeData[T dbDataModel](data []byte) (*dbData[T], error) {
 	dataDecoder := gob.NewDecoder(buffer)
 	var result dbData[T]
 	if err := dataDecoder.Decode(&result); err != nil {
-		return &dbData[T]{}, log.ErrorWrap(err)
+		return &dbData[T]{}, commonLog.ErrorWrap(err)
 	}
 	return &result, nil
 }
@@ -34,7 +34,7 @@ func decodeDataBatch[T dbDataModel](data [][]byte) ([]*dbData[T], error) {
 		dataDecoder := gob.NewDecoder(buffer)
 		result := dbData[T]{}
 		if err := dataDecoder.Decode(&result); err != nil {
-			return nil, log.ErrorWrap(err)
+			return nil, commonLog.ErrorWrap(err)
 		}
 		results = append(results, &result)
 	}

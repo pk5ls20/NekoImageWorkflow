@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -22,7 +22,7 @@ func loadConfig(info *ClientConfig) error {
 	var config ConfigWrapper
 	exe, exeErr := os.Executable()
 	if exeErr != nil {
-		return log.ErrorWrap(exeErr)
+		return commonLog.ErrorWrap(exeErr)
 	}
 	configPath = filepath.Dir(exe)
 	if _, fileErr := os.Stat(filepath.Join(configPath, configFileNameWithExtension)); os.IsNotExist(fileErr) {
@@ -31,10 +31,10 @@ func loadConfig(info *ClientConfig) error {
 		viper.SetConfigName(configFileName)
 		viper.AddConfigPath(configPath)
 		if err := viper.ReadInConfig(); err != nil {
-			return log.ErrorWrap(err)
+			return commonLog.ErrorWrap(err)
 		}
 		if err := viper.Unmarshal(&config); err != nil {
-			return log.ErrorWrap(err)
+			return commonLog.ErrorWrap(err)
 		}
 		*info = config.ClientConfig
 	}
@@ -46,7 +46,6 @@ func CreateConfig() {
 	viper.SetConfigName(configFileName)
 	viper.AddConfigPath(configPath)
 	viper.SetConfigType("json")
-	// TODO: update the outdated config fit for the new code in main.go
 	viper.Set("ClientConfig", ClientConfig{
 		ClientRegisterAddress: "https://example.com/register",
 		ConsulAddress:         "https://example-consul.com",

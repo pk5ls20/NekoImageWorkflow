@@ -8,10 +8,7 @@ import (
 	_ "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	clientImpl "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/impl"
 	kitexUploadService "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile/fileuploadservice"
-	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
-	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/sqlite"
+	storageSqlite "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/sqlite"
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
@@ -37,17 +34,12 @@ func RegisterSignalHandle() {
 
 func main() {
 	// 1. init clientImpl
-	client = clientImpl.Client{
-		ClientInfo:     &clientModel.ClientConfig{},
-		Scrapers:       make([]scraperModel.Scraper, 0),
-		PreUploadQueue: queue.GetPreUploadQueue(),
-		UploadQueue:    queue.GetUploadQueue(),
-	}
+	client = clientImpl.Client{}
 	if err := client.OnInit(); err != nil {
 		logrus.Fatal("OnInit error:", err)
 	}
 	// TODO: 2. load client uuid
-	uuid, _ := sqlite.LoadClientUUID()
+	uuid, _ := storageSqlite.LoadClientUUID()
 	logrus.Debug("Client uuid: ", uuid.String())
 	// TODO: 3. init kitex client
 	kitexClientImpl := kitexUploadService.MustNewClient(

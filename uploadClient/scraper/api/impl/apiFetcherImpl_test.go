@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
@@ -61,7 +62,8 @@ func doFetch(fetcher *APIFetcher, cf []*config.APIScraperSourceConfig) error {
 		err = fmt.Errorf("failed to fetch list: %v", err)
 	}
 	// FetchContent
-	contents, err := fetcher.FetchContent(tasks)
+	ctx, cancel := context.WithCancel(context.Background())
+	contents, err := fetcher.FetchContent(tasks, ctx, cancel)
 	if err != nil {
 		err = fmt.Errorf("failed to fetch content: %v", err)
 	}
@@ -132,7 +134,7 @@ func TestAPIFetcherImpl_FetchList(t *testing.T) {
 	if err := doFetch(fetcher, cf); err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if err := fetcher.Init(); err != nil {
+	if err := fetcher.Init(0); err != nil {
 		t.Fatalf("Failed to init fetcher: %v", err)
 	}
 	if err := doFetch(fetcher, cf); err != nil {

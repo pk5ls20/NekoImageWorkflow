@@ -3,75 +3,77 @@ package impl
 import (
 	"context"
 	"fmt"
-	"github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
-	"github.com/pk5ls20/NekoImageWorkflow/common/utils"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
-	scraperModels "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
+	commonUtils "github.com/pk5ls20/NekoImageWorkflow/common/utils"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
+	apiModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
 	"github.com/sirupsen/logrus"
 	"runtime"
 	"sync"
 	"time"
 )
 
+// APISpider is the implementation of Spider, init every time you use it
 type APISpider struct {
-	scraperModels.Spider
+	apiModel.Spider
 	// fetch list
-	fetchList []*scraperModels.SpiderToDoTask
+	fetchList []*apiModel.SpiderToDoTask
 	// context
 	ctx    context.Context
 	cancel context.CancelFunc
 	// protected values
 	initialized                    bool
 	wg                             sync.WaitGroup
-	httpClient                     *utils.HttpClient
-	config                         *scraperModels.SpiderConfig
+	httpClient                     *commonUtils.HttpClient
+	config                         *apiModel.SpiderConfig
 	initialConcurrentTaskLimit     int
 	initialSingleTaskRetryDuration time.Duration
-	taskPendingChannel             chan *scraperModels.SpiderDoTask
-	taskDoneChannel                chan *scraperModels.SpiderDoTask
-	dynamicSemaphore               *utils.DynamicSemaphore
+	taskPendingChannel             chan *apiModel.SpiderDoTask
+	taskDoneChannel                chan *apiModel.SpiderDoTask
+	dynamicSemaphore               *commonUtils.DynamicSemaphore
 	// protected locked values
-	fetchAllTime            *utils.LockValue[int]
-	fetchSuccessTime        *utils.LockValue[int]
-	concurrentTaskLimit     *utils.RWLockValue[int]
-	singleTaskRetryDuration *utils.RWLockValue[time.Duration]
+	fetchAllTime            *commonUtils.LockValue[int]
+	fetchSuccessTime        *commonUtils.LockValue[int]
+	concurrentTaskLimit     *commonUtils.RWLockValue[int]
+	singleTaskRetryDuration *commonUtils.RWLockValue[time.Duration]
 }
 
-func (s *APISpider) Init(fetchTaskList []*scraperModels.SpiderToDoTask, config *scraperModels.SpiderConfig,
+func (s *APISpider) Init(fetchTaskList []*apiModel.SpiderToDoTask, config *apiModel.SpiderConfig,
 	ctx context.Context, cancel context.CancelFunc) error {
 	s.fetchList = fetchTaskList
 	// init context
 	s.ctx, s.cancel = ctx, cancel
 	// init protected values
 	s.wg = sync.WaitGroup{}
-	s.httpClient = utils.NewHttpClient()
+	s.httpClient = commonUtils.NewHttpClient()
 	s.config = config
 	s.initialConcurrentTaskLimit = config.ConcurrentTaskLimit
 	s.initialSingleTaskRetryDuration = config.SingleTaskRetryDuration
-	s.taskPendingChannel = make(chan *scraperModels.SpiderDoTask, len(s.fetchList))
-	s.taskDoneChannel = make(chan *scraperModels.SpiderDoTask, len(s.fetchList))
-	s.dynamicSemaphore = utils.NewDynamicSemaphore(config.ConcurrentTaskLimit)
+	s.taskPendingChannel = make(chan *apiModel.SpiderDoTask, len(s.fetchList))
+	s.taskDoneChannel = make(chan *apiModel.SpiderDoTask, len(s.fetchList))
+	s.dynamicSemaphore = commonUtils.NewDynamicSemaphore(config.ConcurrentTaskLimit)
 	// init protected locked values
-	s.fetchAllTime = utils.NewLockValue[int](0)
-	s.fetchSuccessTime = utils.NewLockValue[int](0)
-	s.concurrentTaskLimit = utils.NewRWLockValue[int](s.initialConcurrentTaskLimit)
-	s.singleTaskRetryDuration = utils.NewRWLockValue[time.Duration](s.initialSingleTaskRetryDuration)
+	s.fetchAllTime = commonUtils.NewLockValue[int](0)
+	s.fetchSuccessTime = commonUtils.NewLockValue[int](0)
+	s.concurrentTaskLimit = commonUtils.NewRWLockValue[int](s.initialConcurrentTaskLimit)
+	s.singleTaskRetryDuration = commonUtils.NewRWLockValue[time.Duration](s.initialSingleTaskRetryDuration)
 	s.initialized = true
 	return nil
 }
 
 func (s *APISpider) Start() error {
 	if !s.initialized {
-		return log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
+		return commonLog.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
 	s.wg.Add(len(s.fetchList))
 	go func() {
 		for _, task := range s.fetchList {
-			s.taskPendingChannel <- &scraperModels.SpiderDoTask{
+			s.taskPendingChannel <- &apiModel.SpiderDoTask{
 				TotalRetries: 0,
 				Success:      false,
 				SpiderTask:   task.SpiderTask,
+				ScraperID:    task.ScraperID,
 			}
 		}
 	}()
@@ -87,7 +89,7 @@ func (s *APISpider) Start() error {
 					logrus.Error("Failed to acquire semaphore due to err", err)
 					return
 				}
-				go func(t *scraperModels.SpiderDoTask) {
+				go func(t *apiModel.SpiderDoTask) {
 					defer s.dynamicSemaphore.Release()
 					logrus.Debug("Start to fetch ", t.Url)
 					s.httpRequest(t)
@@ -103,7 +105,7 @@ func (s *APISpider) Start() error {
 // Cancel will directly cancel all tasks, means WaitDone stops being blocked and return all results
 func (s *APISpider) Cancel() error {
 	if !s.initialized {
-		return log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
+		return commonLog.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
 	logrus.Infof("Task Done triggered, having %d tasks left, %d tasks done",
 		len(s.taskPendingChannel), len(s.taskDoneChannel))
@@ -112,10 +114,10 @@ func (s *APISpider) Cancel() error {
 }
 
 // WaitDone return all results, will block until all tasks are done except manually Cancel
-func (s *APISpider) WaitDone() ([]*scraperModels.SpiderDoTask, error) {
-	doneTasks := make([]*scraperModels.SpiderDoTask, 0)
+func (s *APISpider) WaitDone() ([]*apiModel.SpiderDoTask, error) {
+	doneTasks := make([]*apiModel.SpiderDoTask, 0)
 	if !s.initialized {
-		return doneTasks, log.ErrorWrap(fmt.Errorf("apiParser not initialized"))
+		return doneTasks, commonLog.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
 	s.wg.Wait()
 	if err := s.Cancel(); err != nil {
@@ -129,7 +131,7 @@ func (s *APISpider) WaitDone() ([]*scraperModels.SpiderDoTask, error) {
 	return doneTasks, nil
 }
 
-func (s *APISpider) httpRequest(task *scraperModels.SpiderDoTask) {
+func (s *APISpider) httpRequest(task *apiModel.SpiderDoTask) {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -153,12 +155,16 @@ func (s *APISpider) httpRequest(task *scraperModels.SpiderDoTask) {
 				time.Sleep(s.singleTaskRetryDuration.Get())
 				continue
 			}
-			if fetchData, err := model.NewScraperUploadTempFileData(commonModel.APIScraperType, resData); err != nil {
+			if fetchData, err := clientModel.NewScraperUploadTempFileData(
+				commonModel.APIScraperType,
+				task.ScraperID,
+				resData,
+			); err != nil {
 				logrus.Errorf("Failed to create temp file data due to err: %v", err)
 				time.Sleep(s.singleTaskRetryDuration.Get())
 				continue
 			} else {
-				task.FetchData = *fetchData
+				task.FetchData = fetchData
 			}
 			task.Success = true
 			logrus.Infof("Successfully fetched %s", task.Url)

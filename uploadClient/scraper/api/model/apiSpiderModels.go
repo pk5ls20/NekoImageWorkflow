@@ -2,7 +2,7 @@ package model
 
 import (
 	"context"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	"time"
 )
 
@@ -18,6 +18,8 @@ type SpiderTask struct {
 // SpiderToDoTask is the task to do
 type SpiderToDoTask struct {
 	*SpiderTask
+	ScraperID int
+	FetchData *clientModel.PreUploadFileDataModel
 }
 
 // SpiderDoTask completes its init in func (s *APISpider) Init and returns after WaitDone()
@@ -25,9 +27,11 @@ type SpiderDoTask struct {
 	*SpiderTask
 	TotalRetries int
 	Success      bool
-	FetchData    model.UploadFileDataModel
+	ScraperID    int
+	FetchData    *clientModel.UploadFileDataModel
 }
 
+// Spider is the interface for spider
 type Spider interface {
 	Init(fetchTaskList []*SpiderToDoTask, config *SpiderConfig, ctx context.Context, cancel context.CancelFunc) error
 	Start() error

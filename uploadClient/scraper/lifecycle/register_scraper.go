@@ -3,40 +3,48 @@ package lifecycle
 import (
 	"github.com/mitchellh/mapstructure"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
-	apiScp "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/impl"
-	localScp "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/local/impl"
-	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
-	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
+	apiScraper "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/impl"
+	localScraper "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/local/impl"
+	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
+	configModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
 	"github.com/sirupsen/logrus"
 )
 
-func RegisterScraper(ScraperList clientModel.ScraperList) []model.Scraper {
-	ins := make([]model.Scraper, 0)
+func RegisterScraper(ScraperList configModel.ScraperList) ([]scraperModel.Scraper, scraperModel.ScraperChanMap) {
+	ins := make([]scraperModel.Scraper, 0)
+	id := 0
+	chanMap := make(scraperModel.ScraperChanMap)
 	for scraperType, instances := range ScraperList {
 		switch scraperType {
 		case commonModel.LocalScraperType:
 			for _, instance := range instances {
-				var config clientModel.LocalScraperConfig
+				var config configModel.LocalScraperConfig
 				if err := mapstructure.Decode(instance, &config); err != nil {
 					logrus.Error("Error decoding LocalScraperConfig: ", err)
 					continue
 				}
-				ins = append(ins, &localScp.LocalScraper{
+				chanMap[id] = make(chan *clientModel.PreUploadFileDataModel)
+				ins = append(ins, &localScraper.LocalScraper{
 					InsConfig: &config,
+					ScraperID: id,
 				})
+				id += 1
 			}
 		case commonModel.APIScraperType:
 			for _, instance := range instances {
-				var config clientModel.APIScraperConfig
+				var config configModel.APIScraperConfig
 				if err := mapstructure.Decode(instance, &config); err != nil {
 					logrus.Error("Error decoding APIScraperConfig: ", err)
 					continue
 				}
-				ins = append(ins, &apiScp.APIScraper{
+				chanMap[id] = make(chan *clientModel.PreUploadFileDataModel)
+				ins = append(ins, &apiScraper.APIScraper{
 					InsConfig: &config,
 				})
+				id += 1
 			}
 		}
 	}
-	return ins
+	return ins, chanMap
 }

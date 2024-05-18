@@ -15,4 +15,6 @@ type Scraper interface {
 	OnStop() error
 	// GetType return the type of the scraper
 	GetType() commomModel.ScraperType
+	// GetID return the id of the scraper
+	GetID() int
 }

@@ -2,9 +2,9 @@ package tmp
 
 import (
 	"github.com/google/uuid"
-	"github.com/pk5ls20/NekoImageWorkflow/common/log"
-	"github.com/pk5ls20/NekoImageWorkflow/common/utils"
-	uuidTool "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
+	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
+	commonUtils "github.com/pk5ls20/NekoImageWorkflow/common/utils"
+	commonUUID "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
 	"github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
@@ -21,7 +21,7 @@ type tmpFile interface {
 
 type TmpFile struct {
 	tmpFile
-	lockChan utils.IDLock
+	lockChan commonUtils.IDLock
 }
 
 func NewTmpFile() *TmpFile {
@@ -31,7 +31,7 @@ func NewTmpFile() *TmpFile {
 		}
 	}
 	return &TmpFile{
-		lockChan: *utils.NewIDLock(),
+		lockChan: *commonUtils.NewIDLock(),
 	}
 }
 
@@ -71,7 +71,7 @@ func (t *TmpFile) modifyLockFile(lockFilePath string, changeVal int) (int, error
 // fileContent the content of the file
 // extension the extension of the file (e.g. ".jpg")
 func (t *TmpFile) Create(fileContent []byte, extension string) (filePath string, fileUUID uuid.UUID, err error) {
-	genUUID := uuidTool.GenerateByteSliceUUID(fileContent)
+	genUUID := commonUUID.GenerateByteSliceUUID(fileContent)
 	fileUUIDString := genUUID.String()
 	fileName := fileUUIDString + extension
 	filePath = filepath.Join(tmpDir, fileName)
@@ -82,14 +82,14 @@ func (t *TmpFile) Create(fileContent []byte, extension string) (filePath string,
 	if _, _err := os.Stat(filePath); _err == nil {
 		var newCount int
 		if newCount, err = t.modifyLockFile(lockfilePath, 1); err != nil {
-			return filePath, genUUID, log.ErrorWrap(err)
+			return filePath, genUUID, commonLog.ErrorWrap(err)
 		}
 		logrus.Debugf("File %s already exists, new count = %d", filePath, newCount)
 		return filePath, genUUID, nil
 	}
 	// if file itself not exists, create the file itself
 	if err = os.WriteFile(filePath, fileContent, 0644); err != nil {
-		return "", genUUID, log.ErrorWrap(err)
+		return "", genUUID, commonLog.ErrorWrap(err)
 	}
 	logrus.Debug("Create temp file: ", filePath)
 	return filePath, genUUID, nil
@@ -105,14 +105,14 @@ func (t *TmpFile) Delete(filePath string) error {
 		if _, err := os.Stat(lockFile); os.IsNotExist(err) {
 			logrus.Debug("lockfile not exists, so delete file: ", filePath)
 			if __err := os.Remove(filePath); __err != nil {
-				return log.ErrorWrap(__err)
+				return commonLog.ErrorWrap(__err)
 			}
 			return nil
 		}
 		// if lockfile exists, just control lockfile
 		lockCount, err := t.modifyLockFile(lockFile, -1)
 		if err != nil {
-			return log.ErrorWrap(err)
+			return commonLog.ErrorWrap(err)
 		}
 		logrus.Debugf("File %s have lockfile, new count = %d", filePath, lockCount)
 		return nil

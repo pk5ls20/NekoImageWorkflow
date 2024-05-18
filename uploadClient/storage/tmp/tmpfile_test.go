@@ -8,6 +8,12 @@ import (
 )
 
 func TestCreateAndDelete(t *testing.T) {
+	defer func() {
+		err := os.Remove(tmpDir)
+		if err != nil {
+			t.Errorf("Failed to remove tmpDir: %s", err)
+		}
+	}()
 	tf := NewTmpFile()
 	content := []byte("hello world")
 	ext := ".txt"
@@ -30,9 +36,6 @@ func TestCreateAndDelete(t *testing.T) {
 	}
 	if _, err := os.Stat(filePath); !os.IsNotExist(err) {
 		t.Errorf("File exists after deletion")
-	}
-	if err := os.Remove(tmpDir); err != nil {
-		return
 	}
 }
 

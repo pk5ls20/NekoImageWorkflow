@@ -274,7 +274,7 @@ func (x *ClientInfo) GetClientType() ClientType {
 
 // PreUploadFileData
 // ResourceUUID Used to uniquely identify the resource
-// ResourceUri Path to the local Client for the resource
+// ResourceUri Path to the local ClientImpl for the resource
 type PreUploadFileData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -311,7 +311,7 @@ func (x *PreUploadFileData) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use preUploadFileData.ProtoReflect.Descriptor instead.
+// Deprecated: Use PreUploadFileData.ProtoReflect.Descriptor instead.
 func (*PreUploadFileData) Descriptor() ([]byte, []int) {
 	return file_clientTransform_proto_rawDescGZIP(), []int{1}
 }
@@ -332,7 +332,7 @@ func (x *PreUploadFileData) GetResourceUri() string {
 
 // UploadFileData
 // FileUUID Used to uniquely identify the uploaded file
-// FileContent Path to the local Client for the uploaded file
+// FileContent Path to the local ClientImpl for the uploaded file
 type UploadFileData struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -871,7 +871,7 @@ var file_clientTransform_proto_goTypes = []interface{}{
 	(FilePreStatusCode)(0),     // 2: protoFile.FilePreStatusCode
 	(FilePostStatusCode)(0),    // 3: protoFile.FilePostStatusCode
 	(*ClientInfo)(nil),         // 4: protoFile.ClientInfo
-	(*PreUploadFileData)(nil),  // 5: protoFile.preUploadFileData
+	(*PreUploadFileData)(nil),  // 5: protoFile.PreUploadFileData
 	(*UploadFileData)(nil),     // 6: protoFile.UploadFileData
 	(*FilePreRequest)(nil),     // 7: protoFile.FilePreRequest
 	(*FilePostRequest)(nil),    // 8: protoFile.FilePostRequest
@@ -883,7 +883,7 @@ var file_clientTransform_proto_goTypes = []interface{}{
 var file_clientTransform_proto_depIdxs = []int32{
 	0,  // 0: protoFile.ClientInfo.clientType:type_name -> protoFile.ClientType
 	4,  // 1: protoFile.FilePreRequest.clientInfo:type_name -> protoFile.ClientInfo
-	5,  // 2: protoFile.FilePreRequest.data:type_name -> protoFile.preUploadFileData
+	5,  // 2: protoFile.FilePreRequest.data:type_name -> protoFile.PreUploadFileData
 	4,  // 3: protoFile.FilePostRequest.clientInfo:type_name -> protoFile.ClientInfo
 	6,  // 4: protoFile.FilePostRequest.data:type_name -> protoFile.UploadFileData
 	2,  // 5: protoFile.FilePreStatusData.filePreUploadStatus:type_name -> protoFile.FilePreStatusCode
