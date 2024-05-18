@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"errors"
 	"fmt"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
 	"github.com/sirupsen/logrus"
@@ -79,6 +80,11 @@ func TestAPIFetcherImpl_FetchList(t *testing.T) {
 			logrus.Error("Failed to remove temp directory: ", err)
 		}
 	}(tempDir)
+	if _, err := os.Stat("_tmp"); errors.Is(err, os.ErrNotExist) {
+		if err := os.Mkdir("_tmp", 0755); err != nil {
+			t.Fatalf("Failed to create temp directory: %v", err)
+		}
+	}
 	defer func() {
 		if err := os.RemoveAll("_tmp"); err != nil {
 			logrus.Error("Error removing _tmp folder: ", err)

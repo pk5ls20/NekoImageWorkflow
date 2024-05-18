@@ -2,6 +2,7 @@ package impl
 
 import (
 	"context"
+	"errors"
 	"github.com/google/uuid"
 	_ "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	uuidTool "github.com/pk5ls20/NekoImageWorkflow/common/uuid"
@@ -74,6 +75,11 @@ func realTest(t *testing.T, spider *APISpider, tasks []*scraperModels.SpiderToDo
 }
 
 func TestAPISpiderWithMockServer(t *testing.T) {
+	if _, err := os.Stat("_tmp"); errors.Is(err, os.ErrNotExist) {
+		if err := os.Mkdir("_tmp", 0755); err != nil {
+			t.Fatalf("Failed to create temp directory: %v", err)
+		}
+	}
 	defer func() {
 		if err := os.RemoveAll("_tmp"); err != nil {
 			logrus.Error("Error removing _tmp folder: ", err)
