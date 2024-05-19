@@ -1,7 +1,8 @@
 package utils
 
 import (
-	"errors"
+	"fmt"
+	"github.com/sirupsen/logrus"
 	"sync"
 )
 
@@ -13,21 +14,32 @@ type lockEntry struct {
 	ch chan struct{}
 }
 
+var (
+	once     sync.Once
+	instance *IDLock
+)
+
 // NewIDLock creates a new IDLock instance
 // TODO: add TTL and optimise idLock impl
 func NewIDLock() *IDLock {
-	return &IDLock{}
+	once.Do(func() {
+		instance = &IDLock{}
+	})
+	return instance
 }
 
 func (l *IDLock) Lock(id string) {
+	logrus.Debug("Start to Locking id: ", id)
 	entry, loaded := l.lockMap.LoadOrStore(id, &lockEntry{
 		ch: make(chan struct{}, 1),
 	})
 	e := entry.(*lockEntry)
 	if !loaded {
+		logrus.Debugf("Making new chan for id %s", id)
 		e.ch <- struct{}{}
 	}
 	<-e.ch
+	logrus.Debugf("Locked id: %s", id)
 }
 
 func (l *IDLock) Unlock(id string) error {
@@ -35,9 +47,11 @@ func (l *IDLock) Unlock(id string) error {
 		e := val.(*lockEntry)
 		select {
 		case e.ch <- struct{}{}:
+			logrus.Debug("Unlocked id: ", id)
+			return nil
 		default:
-			return errors.New("channel is full")
+			return fmt.Errorf("id %s channel is full", id)
 		}
 	}
-	return errors.New("no lock found for id")
+	return fmt.Errorf("no lock found for id %s", id)
 }

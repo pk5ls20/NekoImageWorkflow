@@ -54,7 +54,6 @@ func realTest(t *testing.T, spider *APISpider, tasks []*scraperModels.SpiderToDo
 	if actualResultCount != expectedResultCount {
 		t.Errorf("Expected %d successful tasks, but got %d", expectedResultCount, actualResultCount)
 	}
-	//TODO: add test for scraperID
 	for i, result := range rs {
 		if result.Success {
 			val := reflect.ValueOf(result.FetchData).Elem()
@@ -149,11 +148,13 @@ func TestAPISpiderWithMockServer(t *testing.T) {
 	if _, err := spider.WaitDone(); err == nil {
 		t.Error("Should not WaitDone without init")
 	}
+	// test without timeout
+	realTest(t, &APISpider{}, tasks, config, expectedUUID, 114514*time.Hour) // never timeout
+	// test with timeout
 	realTest(t, &APISpider{}, tasks, config, expectedUUID, 1*time.Microsecond)
 	realTest(t, &APISpider{}, tasks, config, expectedUUID, 1*time.Millisecond)
 	realTest(t, &APISpider{}, tasks, config, expectedUUID, 1*time.Second)
 	realTest(t, &APISpider{}, tasks, config, expectedUUID, 10*time.Second)
 	realTest(t, &APISpider{}, tasks, config, expectedUUID, 30*time.Second)
 	realTest(t, &APISpider{}, tasks, config, expectedUUID, 60*time.Second)
-	realTest(t, &APISpider{}, tasks, config, expectedUUID, 114514*time.Hour) // never timeout
 }

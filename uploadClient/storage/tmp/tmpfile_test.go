@@ -9,8 +9,7 @@ import (
 
 func TestCreateAndDelete(t *testing.T) {
 	defer func() {
-		err := os.Remove(tmpDir)
-		if err != nil {
+		if err := os.Remove(tmpDir); err != nil {
 			t.Errorf("Failed to remove tmpDir: %s", err)
 		}
 	}()
@@ -40,6 +39,11 @@ func TestCreateAndDelete(t *testing.T) {
 }
 
 func TestConcurrentAccess(t *testing.T) {
+	defer func() {
+		if err := os.Remove(tmpDir); err != nil {
+			t.Errorf("Failed to remove tmpDir: %s", err)
+		}
+	}()
 	tf := NewTmpFile()
 	content := []byte("test data")
 	ext := ".dat"
@@ -59,12 +63,14 @@ func TestConcurrentAccess(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	if err := os.Remove(tmpDir); err != nil {
-		return
-	}
 }
 
 func TestUniqueIDCreation(t *testing.T) {
+	defer func() {
+		if err := os.Remove(tmpDir); err != nil {
+			t.Errorf("Failed to remove tmpDir: %s", err)
+		}
+	}()
 	tf := NewTmpFile()
 	content1 := []byte("content")
 	content2 := []byte("another content")
@@ -88,8 +94,5 @@ func TestUniqueIDCreation(t *testing.T) {
 	}
 	if err := tf.Delete(filePath2); err != nil {
 		t.Errorf("Failed to delete second file: %s", err)
-	}
-	if err := os.Remove(tmpDir); err != nil {
-		return
 	}
 }

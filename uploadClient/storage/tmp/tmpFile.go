@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 )
 
 const tmpDir = "_tmp"
@@ -21,26 +22,34 @@ type tmpFile interface {
 
 type TmpFile struct {
 	tmpFile
-	lockChan commonUtils.IDLock
+	lockChan *commonUtils.IDLock
+	once     sync.Once
 }
 
+var instance = &TmpFile{}
+
 func NewTmpFile() *TmpFile {
-	if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
-		if err := os.Mkdir(tmpDir, 0755); err != nil {
-			logrus.Error("Failed to create tmp directory: ", err)
+	instance.once.Do(func() {
+		if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+			if err := os.Mkdir(tmpDir, 0755); err != nil {
+				logrus.Error("Failed to create tmp directory: ", err)
+			}
 		}
-	}
-	return &TmpFile{
-		lockChan: *commonUtils.NewIDLock(),
-	}
+		instance = &TmpFile{
+			lockChan: commonUtils.NewIDLock(),
+		}
+	})
+	return instance
 }
 
 // modifyLockFile add changeVal to the count in the lock file, return the new count
 // if the lockfile don't exist, create a new one with count = changeVal
 // if the final count<=0, the lock file will be deleted
 func (t *TmpFile) modifyLockFile(lockFilePath string, changeVal int) (int, error) {
+	logrus.Debug("Modify lock file: ", lockFilePath)
 	var count = 0
 	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		logrus.Debugf("Lock file %s not exists, create a new one with count = %d", lockFilePath, changeVal)
 		count = 0
 	} else {
 		data, _err := os.ReadFile(lockFilePath)
@@ -76,7 +85,11 @@ func (t *TmpFile) Create(fileContent []byte, extension string) (filePath string,
 	fileName := fileUUIDString + extension
 	filePath = filepath.Join(tmpDir, fileName)
 	t.lockChan.Lock(filePath)
-	defer t.lockChan.Unlock(filePath)
+	defer func(lockChan *commonUtils.IDLock, id string) {
+		if _err := lockChan.Unlock(id); _err != nil {
+			logrus.Fatal("Failed to unlock: ", _err)
+		}
+	}(t.lockChan, filePath)
 	lockfilePath := filepath.Join(tmpDir, fileName+".lock")
 	// if file already exists, just control lockfile
 	if _, _err := os.Stat(filePath); _err == nil {
@@ -98,7 +111,11 @@ func (t *TmpFile) Create(fileContent []byte, extension string) (filePath string,
 // Delete deletes a temporary file
 func (t *TmpFile) Delete(filePath string) error {
 	t.lockChan.Lock(filePath)
-	defer t.lockChan.Unlock(filePath)
+	defer func(lockChan *commonUtils.IDLock, id string) {
+		if err := lockChan.Unlock(id); err != nil {
+			logrus.Fatal("Failed to unlock: ", err)
+		}
+	}(t.lockChan, filePath)
 	if _, _err := os.Stat(filePath); _err == nil {
 		lockFile := filePath + ".lock"
 		// if lockfile not exists, delete the file itself

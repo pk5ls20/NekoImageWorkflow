@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -55,7 +56,8 @@ var routeMap = func(prefix string) map[string]string {
 	}
 }
 
-func doFetch(fetcher *APIFetcher, cf []*config.APIScraperSourceConfig) error {
+// doFetch TODO: check the fetched contents
+func doFetch(t *testing.T, fetcher *APIFetcher, scraperID int, cf []*config.APIScraperSourceConfig) error {
 	var err error
 	tasks, err := fetcher.FetchList(cf)
 	if err != nil {
@@ -67,7 +69,13 @@ func doFetch(fetcher *APIFetcher, cf []*config.APIScraperSourceConfig) error {
 	if err != nil {
 		err = fmt.Errorf("failed to fetch content: %v", err)
 	}
-	logrus.Info("Contents: ", contents)
+	// check scraper id
+	for _, content := range contents {
+		if content.ScraperID != scraperID {
+			t.Errorf("scraper id not match: %d, %d", content.ScraperID, scraperID)
+		}
+	}
+	logrus.Info("scraperID #", scraperID, " Contents: ", contents)
 	return err
 }
 
@@ -131,14 +139,29 @@ func TestAPIFetcherImpl_FetchList(t *testing.T) {
 	})
 	// init fetcher
 	fetcher := &APIFetcher{}
-	if err := doFetch(fetcher, cf); err == nil {
+	if err := doFetch(t, fetcher, 0, cf); err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if err := fetcher.Init(0); err != nil {
-		t.Fatalf("Failed to init fetcher: %v", err)
+	var wg sync.WaitGroup
+	var scraperLen = 100
+	var scraperIDList = make([]int, scraperLen)
+	for i := 0; i < scraperLen; i++ {
+		scraperIDList[i] = i
 	}
-	if err := doFetch(fetcher, cf); err != nil {
-		t.Fatalf("don't expect error, got: %v", err)
+	wg.Add(len(scraperIDList))
+	for _, scpID := range scraperIDList {
+		go func(id int) {
+			defer wg.Done()
+			ft := &APIFetcher{}
+			if err := ft.Init(id); err != nil {
+				t.Errorf("Failed to init fetcher: %v", err)
+				return
+			}
+			if err := doFetch(t, ft, id, cf); err != nil {
+				t.Errorf("don't expect error, got: %v", err)
+				return
+			}
+		}(scpID)
 	}
-	// TODO: check the fetched contents
+	wg.Wait()
 }
