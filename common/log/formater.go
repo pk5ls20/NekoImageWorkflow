@@ -37,10 +37,10 @@ func (f *CustomFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	if entry.Level == logrus.ErrorLevel || entry.Level == logrus.FatalLevel || entry.Level == logrus.PanicLevel {
 		output = fmt.Sprintf("\033[32m%s \033[0m[\033[%dm%s\033[0m]"+
 			" \033[34;4m%s\033[0m | \033[38;2;255;0;0;48;2;255;188;212m%s\033[0m\n",
-			time.Now().Format("01-02 15:04:05"), levelColor, levelText, fileLine, entry.Message)
+			time.Now().Format("01-02 15:04:05.00000"), levelColor, levelText, fileLine, entry.Message)
 	} else {
 		output = fmt.Sprintf("\033[32m%s \033[0m[\033[%dm%s\033[0m] \033[34;4m%s\033[0m | %s\n",
-			time.Now().Format("01-02 15:04:05"), levelColor, levelText, fileLine, entry.Message)
+			time.Now().Format("01-02 15:04:05.00000"), levelColor, levelText, fileLine, entry.Message)
 	}
 	return []byte(output), nil
 }
