@@ -47,11 +47,14 @@ func (c *HttpClient) Get(url string, header map[string]string, cookie map[string
 		}
 	}
 	resp, err := c.client.Do(req)
-	if resp.StatusCode != 200 {
-		return nil, log.ErrorWrap(errors.New(fmt.Sprintf("status code: %d", resp.StatusCode)))
-	}
 	if err != nil {
 		return nil, log.ErrorWrap(err)
+	}
+	if resp == nil {
+		return nil, log.ErrorWrap(errors.New("response is nil"))
+	}
+	if resp.StatusCode != 200 {
+		return nil, log.ErrorWrap(errors.New(fmt.Sprintf("status code: %d", resp.StatusCode)))
 	}
 	defer func(Body io.ReadCloser) {
 		if _err := Body.Close(); _err != nil {
