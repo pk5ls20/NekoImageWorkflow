@@ -36,7 +36,7 @@ func (a *APIParser) RegisterParser(jsFilePath string) error {
 		return commonLog.ErrorWrap(fmt.Errorf("apiParser not initialized"))
 	}
 	if _, exists := a.parserMap[jsFilePath]; exists {
-		logrus.Debugf("Parser %s already exists, content is %s", jsFilePath, a.parserMap[jsFilePath])
+		logrus.Debugf("Parser %s already exists, content is \n %s", jsFilePath, a.parserMap[jsFilePath])
 		return nil
 	}
 	file, err := os.Open(jsFilePath)

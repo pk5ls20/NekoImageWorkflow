@@ -49,7 +49,7 @@ func CreateConfig() {
 	viper.Set("ClientConfig", ClientConfig{
 		ClientRegisterAddress: "https://example.com/register",
 		ConsulAddress:         "https://example-consul.com",
-		PostUploadPeriod:      300,
+		PostUploadPeriod:      0.5,
 		Scraper: map[commonModel.ScraperType][]Scraper{
 			commonModel.LocalScraperType: {
 				LocalScraperConfig{

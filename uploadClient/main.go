@@ -12,12 +12,16 @@ import (
 	"github.com/sirupsen/logrus"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
 
-var client clientImpl.Client
-var signalChan chan os.Signal
+var (
+	client     clientImpl.Client
+	signalChan chan os.Signal
+	wg         sync.WaitGroup
+)
 
 func RegisterSignalHandle() {
 	signalChan = make(chan os.Signal, 1)
@@ -59,13 +63,22 @@ func main() {
 	RegisterSignalHandle()
 	// 5. start client upload
 	ctx := context.Background()
-	for {
-		if err := client.HandleFilePreUpload(ctx, kitexClientImpl); err != nil {
-			logrus.Error("PreUpload error:", err)
+	wg.Add(2)
+	go func() {
+		for {
+			if err := client.HandleFilePreUpload(ctx, kitexClientImpl); err != nil {
+				logrus.Error("PreUpload error:", err)
+			}
+			time.Sleep(time.Duration(int64(client.ClientInfo.PostUploadPeriod*1000)) * time.Millisecond)
 		}
-		if err := client.HandleFilePostUpload(ctx, kitexClientImpl); err != nil {
-			logrus.Error("PostUpload error:", err)
+	}()
+	go func() {
+		for {
+			if err := client.HandleFilePostUpload(ctx, kitexClientImpl); err != nil {
+				logrus.Error("PostUpload error:", err)
+			}
+			time.Sleep(time.Duration(int64(client.ClientInfo.PostUploadPeriod*1000)) * time.Millisecond)
 		}
-		time.Sleep(time.Second * time.Duration(client.ClientInfo.PostUploadPeriod))
-	}
+	}()
+	wg.Wait()
 }

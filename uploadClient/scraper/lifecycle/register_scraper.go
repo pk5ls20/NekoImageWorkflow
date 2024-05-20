@@ -8,10 +8,11 @@ import (
 	localScraper "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/local/impl"
 	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
 	configModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
+	storageQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
 	"github.com/sirupsen/logrus"
 )
 
-func RegisterScraper(ScraperList configModel.ScraperList) ([]scraperModel.Scraper, scraperModel.ScraperChanMap) {
+func RegisterScraper(ScraperList configModel.ScraperList) []scraperModel.Scraper {
 	ins := make([]scraperModel.Scraper, 0)
 	id := 0
 	chanMap := make(scraperModel.ScraperChanMap)
@@ -27,7 +28,13 @@ func RegisterScraper(ScraperList configModel.ScraperList) ([]scraperModel.Scrape
 				chanMap[id] = make(chan *clientModel.PreUploadFileDataModel)
 				ins = append(ins, &localScraper.LocalScraper{
 					InsConfig: &config,
-					ScraperID: id,
+					BaseScraper: scraperModel.BaseScraper{
+						ScraperID:      id,
+						Enable:         config.Enable,
+						PreUploadQueue: storageQueue.GetPreUploadQueue(),
+						UploadQueue:    storageQueue.GetUploadQueue(),
+						ScraperChanMap: chanMap,
+					},
 				})
 				id += 1
 			}
@@ -41,10 +48,17 @@ func RegisterScraper(ScraperList configModel.ScraperList) ([]scraperModel.Scrape
 				chanMap[id] = make(chan *clientModel.PreUploadFileDataModel)
 				ins = append(ins, &apiScraper.APIScraper{
 					InsConfig: &config,
+					BaseScraper: scraperModel.BaseScraper{
+						ScraperID:      id,
+						Enable:         config.Enable,
+						PreUploadQueue: storageQueue.GetPreUploadQueue(),
+						UploadQueue:    storageQueue.GetUploadQueue(),
+						ScraperChanMap: chanMap,
+					},
 				})
 				id += 1
 			}
 		}
 	}
-	return ins, chanMap
+	return ins
 }

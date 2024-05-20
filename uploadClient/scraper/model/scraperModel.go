@@ -2,6 +2,7 @@ package model
 
 import (
 	commomModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
+	storageQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
 )
 
 type Scraper interface {
@@ -15,6 +16,14 @@ type Scraper interface {
 	OnStop() error
 	// GetType return the type of the scraper
 	GetType() commomModel.ScraperType
-	// GetID return the id of the scraper
-	GetID() int
+}
+
+type BaseScraper struct {
+	Scraper
+	ScraperID      int
+	InsConfig      any // need to be implemented
+	Enable         bool
+	PreUploadQueue *storageQueue.PreUploadQueue
+	UploadQueue    *storageQueue.UploadQueue
+	ScraperChanMap ScraperChanMap
 }

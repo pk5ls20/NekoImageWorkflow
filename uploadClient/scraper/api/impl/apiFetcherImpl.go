@@ -23,12 +23,12 @@ type APIFetcher struct {
 }
 
 func (a *APIFetcher) Init(scID int) error {
-	logrus.Debug("APIFetcher Init start")
-	a.fetchListParser.Init()
 	a.scraperID = scID
+	logrus.Debugf("%d-APIFetcher Init start", a.scraperID)
+	a.fetchListParser.Init()
 	a.fetchListHttpClient = commonUtils.NewHttpClient()
 	a.initialized = true
-	logrus.Debug("APIFetcher initialized")
+	logrus.Debugf("%d-APIFetcher initialized", a.scraperID)
 	return nil
 }
 
@@ -36,7 +36,7 @@ func (a *APIFetcher) FetchList(cf []*config.APIScraperSourceConfig) ([]*apiModel
 	if !a.initialized {
 		return nil, commonLog.ErrorWrap(errors.New("APIFetcher not initialized"))
 	}
-	logrus.Debug("APIFetcher Fetch start")
+	logrus.Debugf("%d-APIFetcher Fetch start", a.scraperID)
 	var infoList []*apiModel.SpiderToDoTask
 	var fetchTaskList []*apiModel.FetcherTaskList
 	for _, c := range cf {
@@ -86,7 +86,7 @@ func (a *APIFetcher) FetchContent(task []*apiModel.SpiderToDoTask,
 	if !a.initialized {
 		return nil, commonLog.ErrorWrap(errors.New("APIFetcher not initialized"))
 	}
-	logrus.Debug("APIFetcher FetchContent start")
+	logrus.Debugf("%d-APIFetcher FetchContent start", a.scraperID)
 	spider := &APISpider{}
 	spiderConfig := &apiModel.SpiderConfig{
 		SingleTaskMaxRetriesTime:    5,

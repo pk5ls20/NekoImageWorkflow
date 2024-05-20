@@ -94,14 +94,15 @@ func NewScraperPreUploadFileData(scType commonModel.ScraperType, scID int, uri s
 	return m, err
 }
 
-func NewScraperUploadFileData(scType commonModel.ScraperType, scID int, filePath string) (*UploadFileDataModel, error) {
+func NewScraperUploadFileData(model *PreUploadFileDataModel) *UploadFileDataModel {
 	m := &UploadFileDataModel{
-		scraperType: scType,
-		filePath:    filePath,
-		scraperID:   scID,
+		scraperType: model.scraperType,
+		scraperID:   model.scraperID,
+		fileUUID:    model.resourceUUID,
+		filePath:    model.resourceUri,
+		isTempFile:  false,
 	}
-	err := m.calculateUUID()
-	return m, err
+	return m
 }
 
 func NewScraperUploadTempFileData(scType commonModel.ScraperType, scID int, fileContent []byte) (*UploadFileDataModel, error) {

@@ -13,7 +13,7 @@ type ScraperList map[commonModel.ScraperType][]Scraper
 type ClientConfig struct {
 	ClientRegisterAddress string      `mapstructure:"ClientRegisterAddress" json:"ClientRegisterAddress"`
 	ConsulAddress         string      `mapstructure:"ConsulAddress" json:"ConsulAddress"`
-	PostUploadPeriod      int         `mapstructure:"PostUploadPeriod" json:"PostUploadPeriod"`
+	PostUploadPeriod      float64     `mapstructure:"PostUploadPeriod" json:"PostUploadPeriod"`
 	Scraper               ScraperList `mapstructure:"scraper" json:"scraper"`
 }
 
@@ -35,6 +35,6 @@ type APIScraperConfig struct {
 type APIScraperSourceConfig struct {
 	APIAddress           string            `mapstructure:"APIAddress"`
 	ParserJavaScriptFile string            `mapstructure:"ParserJavaScriptFile"`
-	OptionalHeaders      map[string]string `mapstructure:"OptionalHeader"`
+	OptionalHeaders      map[string]string `mapstructure:"OptionalHeaders"`
 	OptionalCookies      map[string]string `mapstructure:"OptionalCookies"`
 }

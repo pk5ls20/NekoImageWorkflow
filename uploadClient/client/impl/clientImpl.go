@@ -3,6 +3,7 @@ package impl
 import (
 	"context"
 	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	kitexUploadClient "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile"
 	kitexUploadService "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile/fileuploadservice"
 	scraperLifeCycle "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/lifecycle"
@@ -51,28 +52,42 @@ func (ci *Client) OnInit() error {
 func (ci *Client) OnStart() error {
 	// TODO: make it really work
 	logrus.Debug("Client OnStart start")
-	ci.Scrapers, ci.ScraperChanMap = scraperLifeCycle.RegisterScraper(ci.ClientInfo.Scraper)
+	ci.Scrapers = scraperLifeCycle.RegisterScraper(ci.ClientInfo.Scraper)
 	go scraperLifeCycle.StartScraper(ci.Scrapers)
 	return nil
 }
 
 // HandleFilePreUpload report pre upload data
+// TODO: Need to store filedata that failed to upload
 func (ci *Client) HandleFilePreUpload(ctx context.Context, cli kitexUploadService.Client) error {
 	// TODO: make it really work
 	logrus.Debug("Client PreUpload start")
-	req := &kitexUploadClient.FilePreRequest{}
-	if _, err := cli.HandleFilePreUpload(ctx, req); err != nil {
+	err := ci.PreUploadQueue.Iterate(func(fileData *clientModel.PreUploadFileDataModel) error {
+		req := &kitexUploadClient.FilePreRequest{}
+		if _, err := cli.HandleFilePreUpload(ctx, req); err != nil {
+			return commonLog.ErrorWrap(err)
+		}
+		return nil
+	})
+	if err != nil {
 		return commonLog.ErrorWrap(err)
 	}
 	return nil
 }
 
 // HandleFilePostUpload report post upload data
+// TODO: Need to store filedata that failed to upload
 func (ci *Client) HandleFilePostUpload(ctx context.Context, cli kitexUploadService.Client) error {
 	// TODO: make it really work
 	logrus.Debug("Client PostUpload start")
-	req := &kitexUploadClient.FilePostRequest{}
-	if _, err := cli.HandleFilePostUpload(ctx, req); err != nil {
+	err := ci.UploadQueue.Iterate(func(fileData *clientModel.UploadFileDataModel) error {
+		req := &kitexUploadClient.FilePostRequest{}
+		if _, err := cli.HandleFilePostUpload(ctx, req); err != nil {
+			return commonLog.ErrorWrap(err)
+		}
+		return nil
+	})
+	if err != nil {
 		return commonLog.ErrorWrap(err)
 	}
 	return nil

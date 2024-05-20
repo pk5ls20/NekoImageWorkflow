@@ -15,6 +15,7 @@ type fileQueue[T clientModel.BaseFileDataModel] interface {
 	Pop() (*T, error)
 	PopNum(number int) ([]*T, error)
 	PopAll() ([]*T, error)
+	Iterate(handler func(*T) error) error
 	closeInputChannel() error
 }
 
@@ -74,6 +75,20 @@ func (c *baseFileQueue[T]) PopAll() ([]*T, error) {
 		return nil, commonLog.ErrorWrap(err)
 	}
 	return pop, nil
+}
+
+func (c *baseFileQueue[T]) Iterate(handler func(*T) error) error {
+	for {
+		select {
+		case v, ok := <-c.channel.Out:
+			if !ok {
+				return nil
+			}
+			if err := handler(v); err != nil {
+				return commonLog.ErrorWrap(err)
+			}
+		}
+	}
 }
 
 func (c *baseFileQueue[T]) closeInputChannel() (err error) {
