@@ -14,10 +14,20 @@ jobs:
       - name: Run go vet on uploadClient
         run: cd uploadClient && go vet ./...
       - name: Run go test on uploadClient
-        run: cd uploadClient && go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-      - name: Upload coverage to Codecov
+        run: cd uploadClient && go test -v -race -coverprofile=coverage1.out -covermode=atomic ./...
+      - name: Upload uploadClient module coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./uploadClient/coverage.out
+          file: ./uploadClient/coverage1.out
           flags: uploadClient
+      - name: Run go vet on common
+        run: cd common && go vet ./...
+      - name: Run go test on common
+        run: cd common && go test -v -race -coverprofile=coverage2.out -covermode=atomic ./...
+      - name: Upload common module coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./common/coverage2.out
+          flags: common
