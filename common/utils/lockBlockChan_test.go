@@ -8,10 +8,11 @@ import (
 	"time"
 )
 
-func TestIDLock(t *testing.T) {
-	lock := IDLock{}
+func TestBasicIDLock(t *testing.T) {
+	lock := NewIDLock()
 	id := "test-id"
 	done := make(chan bool)
+	// A. Test basic lock and unlock
 	// 1. lock id , chan input = 1, after lock should not block
 	go func() {
 		lock.Lock(id)
@@ -55,13 +56,21 @@ func TestIDLock(t *testing.T) {
 	// done chan not received, which means block, expected
 	case <-time.After(1 * time.Second):
 	}
+	// 5. unlock id x2
+	if err := lock.Unlock(id); err != nil {
+		t.Errorf("Unlock failed: %s", err)
+	}
+	if err := lock.Unlock(id); err != nil {
+		t.Errorf("Unlock failed: %s", err)
+	}
+	// B. Test unlock non-existent id
 	if err := lock.Unlock("non-existent-id"); err == nil {
 		t.Errorf("Expected error when unlocking non-existent id, got none")
 	}
 }
 
 func TestIDLockConcurrent(t *testing.T) {
-	lock := IDLock{}
+	lock := NewIDLock()
 	numGoroutines := 100
 	var wg sync.WaitGroup
 	for i := 0; i < numGoroutines; i++ {
@@ -84,7 +93,7 @@ func TestIDLockConcurrent(t *testing.T) {
 }
 
 func TestIDLockSameIDConcurrent(t *testing.T) {
-	lock := IDLock{}
+	lock := NewIDLock()
 	id := "test-id"
 	numGoroutines := 100
 	var wg sync.WaitGroup
