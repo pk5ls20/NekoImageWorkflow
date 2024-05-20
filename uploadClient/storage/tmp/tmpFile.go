@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-const tmpDir = "_tmp"
+const TmpDir = "_tmp"
 
 type tmpFile interface {
 	// Create creates a temporary file
@@ -23,15 +23,17 @@ type tmpFile interface {
 type TmpFile struct {
 	tmpFile
 	lockChan *commonUtils.IDLock
-	once     sync.Once
 }
 
-var instance = &TmpFile{}
+var (
+	instance *TmpFile
+	once     sync.Once
+)
 
 func NewTmpFile() *TmpFile {
-	instance.once.Do(func() {
-		if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
-			if err := os.Mkdir(tmpDir, 0755); err != nil {
+	once.Do(func() {
+		if _, err := os.Stat(TmpDir); os.IsNotExist(err) {
+			if err := os.Mkdir(TmpDir, 0755); err != nil {
 				logrus.Error("Failed to create tmp directory: ", err)
 			}
 		}
@@ -83,14 +85,14 @@ func (t *TmpFile) Create(fileContent []byte, extension string) (filePath string,
 	genUUID := commonUUID.GenerateByteSliceUUID(fileContent)
 	fileUUIDString := genUUID.String()
 	fileName := fileUUIDString + extension
-	filePath = filepath.Join(tmpDir, fileName)
+	filePath = filepath.Join(TmpDir, fileName)
 	t.lockChan.Lock(filePath)
 	defer func(lockChan *commonUtils.IDLock, id string) {
 		if _err := lockChan.Unlock(id); _err != nil {
 			logrus.Fatal("Failed to unlock: ", _err)
 		}
 	}(t.lockChan, filePath)
-	lockfilePath := filepath.Join(tmpDir, fileName+".lock")
+	lockfilePath := filepath.Join(TmpDir, fileName+".lock")
 	// if file already exists, just control lockfile
 	if _, _err := os.Stat(filePath); _err == nil {
 		var newCount int

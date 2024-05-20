@@ -2,19 +2,15 @@ package tmp
 
 import (
 	"bytes"
+	"github.com/sirupsen/logrus"
 	"os"
 	"sync"
 	"testing"
 )
 
 func TestCreateAndDelete(t *testing.T) {
-	defer func() {
-		if err := os.Remove(tmpDir); err != nil {
-			t.Errorf("Failed to remove tmpDir: %s", err)
-		}
-	}()
 	tf := NewTmpFile()
-	content := []byte("hello world")
+	content := []byte("hello world-1")
 	ext := ".txt"
 	filePath, _, _err := tf.Create(content, ext)
 	if _err != nil {
@@ -39,13 +35,8 @@ func TestCreateAndDelete(t *testing.T) {
 }
 
 func TestConcurrentAccess(t *testing.T) {
-	defer func() {
-		if err := os.Remove(tmpDir); err != nil {
-			t.Errorf("Failed to remove tmpDir: %s", err)
-		}
-	}()
 	tf := NewTmpFile()
-	content := []byte("test data")
+	content := []byte("test data-2")
 	ext := ".dat"
 	var wg sync.WaitGroup
 	n := 1000
@@ -66,14 +57,9 @@ func TestConcurrentAccess(t *testing.T) {
 }
 
 func TestUniqueIDCreation(t *testing.T) {
-	defer func() {
-		if err := os.Remove(tmpDir); err != nil {
-			t.Errorf("Failed to remove tmpDir: %s", err)
-		}
-	}()
 	tf := NewTmpFile()
-	content1 := []byte("content")
-	content2 := []byte("another content")
+	content1 := []byte("content-3")
+	content2 := []byte("another content-3")
 	ext := ".log"
 	filePath1, fileUUID1, err1 := tf.Create(content1, ext)
 	if err1 != nil {
@@ -95,4 +81,13 @@ func TestUniqueIDCreation(t *testing.T) {
 	if err := tf.Delete(filePath2); err != nil {
 		t.Errorf("Failed to delete second file: %s", err)
 	}
+}
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if err := os.RemoveAll(TmpDir); err != nil {
+		logrus.Fatalf("Failed to remove TMP_DIR: %s", err)
+	}
+	logrus.Debugf("Removed TMP_DIR: %s", TmpDir)
+	os.Exit(code)
 }
