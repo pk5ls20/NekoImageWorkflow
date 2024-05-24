@@ -7,6 +7,7 @@ replace github.com/pk5ls20/NekoImageWorkflow/common => ../common
 require (
 	github.com/cloudwego/fastpb v0.0.4
 	github.com/cloudwego/kitex v0.9.1
+	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
@@ -14,7 +15,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/robertkrimen/otto v0.4.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/smallnest/chanx v1.2.0
 	github.com/spf13/viper v1.18.2
 	google.golang.org/protobuf v1.34.0
 	gorm.io/driver/sqlite v1.5.5

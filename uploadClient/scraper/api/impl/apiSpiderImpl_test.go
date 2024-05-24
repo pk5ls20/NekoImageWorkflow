@@ -12,12 +12,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
-	"unsafe"
 )
 
 // uuid must contain, and contain only once
@@ -56,17 +54,7 @@ func realTest(t *testing.T, spider *APISpider, tasks []*scraperModels.SpiderToDo
 	}
 	for i, result := range rs {
 		if result.Success {
-			val := reflect.ValueOf(result.FetchData).Elem()
-			fileUUIDField := val.FieldByName("fileUUID")
-			if !fileUUIDField.IsValid() {
-				t.Errorf("Task %d: field 'fileUUID' not found", i)
-				continue
-			}
-			// TODO: Since the final form of the UploadFileDataModel is undetermined,
-			//  we'll first force it to get its fileUUID as an under-exported field here
-			fileUUID := reflect.NewAt(fileUUIDField.Type(),
-				unsafe.Pointer(fileUUIDField.UnsafeAddr())).Elem().Interface().(uuid.UUID)
-			if !containsOnce(expectedUUID, fileUUID) {
+			if !containsOnce(expectedUUID, result.FetchData.FileUUID) {
 				t.Errorf("Task %d: fileUUID not found in expectedUUID or contain > 1", i)
 			}
 		}

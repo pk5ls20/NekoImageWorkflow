@@ -7,7 +7,8 @@ import (
 
 const (
 	UUIDTag keyTag = iota
-	QueueDataTag
+	ActivateQueueDataTag
+	DeadQueueDataTag
 )
 
 // dbDataModel interface should contain all the structs expected to be stored in the database

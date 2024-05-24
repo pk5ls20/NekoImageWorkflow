@@ -3,13 +3,13 @@ package impl
 import (
 	"context"
 	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
-	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
+	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	kitexUploadClient "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile"
 	kitexUploadService "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile/fileuploadservice"
 	scraperLifeCycle "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/lifecycle"
 	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
 	storageConfig "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
-	storageQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
+	storageQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/msgQueue"
 	storageSqlite "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/sqlite"
 	"github.com/sirupsen/logrus"
 )
@@ -31,9 +31,8 @@ type client interface {
 type Client struct {
 	client
 	ClientInfo     *storageConfig.ClientConfig
+	MsgQueue       *storageQueue.MessageQueue
 	Scrapers       []scraperModel.Scraper
-	PreUploadQueue *storageQueue.PreUploadQueue
-	UploadQueue    *storageQueue.UploadQueue
 	ScraperChanMap scraperModel.ScraperChanMap
 }
 
@@ -42,8 +41,7 @@ func (ci *Client) OnInit() error {
 	// init
 	storageSqlite.InitSqlite()
 	logrus.Debug("Client OnInit start")
-	ci.PreUploadQueue = storageQueue.GetPreUploadQueue()
-	ci.UploadQueue = storageQueue.GetUploadQueue()
+	ci.MsgQueue = storageQueue.NewMessageQueue()
 	ci.ClientInfo = storageConfig.GetConfig()
 	return nil
 }
@@ -60,37 +58,47 @@ func (ci *Client) OnStart() error {
 // HandleFilePreUpload report pre upload data
 // TODO: Need to store filedata that failed to upload
 func (ci *Client) HandleFilePreUpload(ctx context.Context, cli kitexUploadService.Client) error {
-	// TODO: make it really work
 	logrus.Debug("Client PreUpload start")
-	err := ci.PreUploadQueue.Iterate(func(fileData *clientModel.PreUploadFileDataModel) error {
-		req := &kitexUploadClient.FilePreRequest{}
-		if _, err := cli.HandleFilePreUpload(ctx, req); err != nil {
-			return commonLog.ErrorWrap(err)
-		}
-		return nil
-	})
+	ch, err := ci.MsgQueue.ListenUploadType(ctx, commonModel.PreUploadType)
 	if err != nil {
 		return commonLog.ErrorWrap(err)
 	}
-	return nil
+	// TODO: make it really work
+	// TODO: add commit and goDead
+	// TODO: add finishupload() etc to fileModel entry
+	select {
+	case <-ctx.Done():
+		return nil
+	case msg := <-ch:
+		logrus.Debug("Client PostUpload msg: ", msg)
+		req := &kitexUploadClient.FilePreRequest{}
+		if _, err = cli.HandleFilePreUpload(ctx, req); err != nil {
+			return commonLog.ErrorWrap(err)
+		}
+		return nil
+	}
 }
 
 // HandleFilePostUpload report post upload data
 // TODO: Need to store filedata that failed to upload
 func (ci *Client) HandleFilePostUpload(ctx context.Context, cli kitexUploadService.Client) error {
-	// TODO: make it really work
 	logrus.Debug("Client PostUpload start")
-	err := ci.UploadQueue.Iterate(func(fileData *clientModel.UploadFileDataModel) error {
-		req := &kitexUploadClient.FilePostRequest{}
-		if _, err := cli.HandleFilePostUpload(ctx, req); err != nil {
-			return commonLog.ErrorWrap(err)
-		}
-		return nil
-	})
+	ch, err := ci.MsgQueue.ListenUploadType(ctx, commonModel.PostUploadType)
 	if err != nil {
 		return commonLog.ErrorWrap(err)
 	}
-	return nil
+	// TODO: make it really work
+	select {
+	case <-ctx.Done():
+		return nil
+	case msg := <-ch:
+		logrus.Debug("Client PostUpload msg: ", msg)
+		req := &kitexUploadClient.FilePostRequest{}
+		if _, err = cli.HandleFilePostUpload(ctx, req); err != nil {
+			return commonLog.ErrorWrap(err)
+		}
+		return nil
+	}
 }
 
 // OnStop write PreUploadQueue data and UploadQueue data to disk

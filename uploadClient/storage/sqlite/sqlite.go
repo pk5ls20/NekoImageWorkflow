@@ -1,10 +1,12 @@
 package sqlite
 
 import (
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
-	storageQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/msgQueue"
 	"github.com/sirupsen/logrus"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -43,7 +45,7 @@ func InitSqlite() {
 			logrus.Fatal(err)
 		}
 		// 2. load data into builtin channel
-		receiveData, err := FindDbDataModelByTag(QueueDataTag)
+		receiveData, err := FindDbDataModelByTag(ActivateQueueDataTag)
 		if err != nil {
 			logrus.Fatal(err)
 		}
@@ -57,7 +59,7 @@ func InitSqlite() {
 		}
 		receiveDataToQueue[clientModel.FileDataModel](decodedReceiveData)
 		// 3. delete data from sqlite
-		if err_ := DeleteDbDataByTag(QueueDataTag); err_ != nil {
+		if err_ := DeleteDbDataByTag(ActivateQueueDataTag); err_ != nil {
 			logrus.Fatal(err_)
 		}
 	})
@@ -98,57 +100,101 @@ func LoadClientUUID() (uuid.UUID, error) {
 
 // TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
 func receiveDataToQueue[T clientModel.FileDataModel](data []*dbData[T]) {
-	ia := storageQueue.GetPreUploadQueue()
-	ib := storageQueue.GetUploadQueue()
-	iaList := make([]*clientModel.PreUploadFileDataModel, 0)
-	ibList := make([]*clientModel.UploadFileDataModel, 0)
+	queue := msgQueue.NewMessageQueue()
+	msgDataList := make([]*msgQueue.MsgQueueData, 0)
 	for _, d := range data {
 		v := reflect.ValueOf(d.Data)
 		switch v.Elem().Interface().(type) {
 		case clientModel.PreUploadFileDataModel:
-			iaList = append(iaList, v.Interface().(*clientModel.PreUploadFileDataModel))
+			ori := v.Interface().(*clientModel.PreUploadFileDataModel)
+			model := &msgQueue.MsgQueueData{
+				MsgMetaData: msgQueue.MsgMetaData{
+					UploadType: commonModel.PreUploadType,
+					MsgMetaID: msgQueue.MsgMetaID{
+						ScraperType: ori.ScraperType,
+						ScraperID:   ori.GetScraperID(),
+						MsgGroupID:  0, //TODO:
+					},
+				},
+				FileMetaData: &clientModel.AnyFileMetaDataModel{
+					PreUploadFileMetaDataModel: &ori.PreUploadFileMetaDataModel,
+				},
+			}
+			msgDataList = append(msgDataList, model)
 		case clientModel.UploadFileDataModel:
-			ibList = append(ibList, v.Interface().(*clientModel.UploadFileDataModel))
+			ori := v.Interface().(*clientModel.UploadFileDataModel)
+			model := &msgQueue.MsgQueueData{
+				MsgMetaData: msgQueue.MsgMetaData{
+					UploadType: commonModel.PostUploadType,
+					MsgMetaID: msgQueue.MsgMetaID{
+						ScraperType: ori.ScraperType,
+						ScraperID:   ori.GetScraperID(),
+						MsgGroupID:  0, //TODO:
+					},
+				},
+				FileMetaData: &clientModel.AnyFileMetaDataModel{
+					UploadFileMetaDataModel: &ori.UploadFileMetaDataModel,
+				},
+			}
+			msgDataList = append(msgDataList, model)
 		default:
 			logrus.Error(fmt.Sprintf("Unknown type: %s", v.Elem().Type().Name()))
 		}
 	}
-	if len(iaList) > 0 {
-		if err := ia.Insert(iaList); err != nil {
-			logrus.Error(err)
+	if err := queue.AddElements(msgDataList); err != nil {
+		logrus.Error(err)
+	}
+}
+
+func transMsgQueueData(tag keyTag, queueData []*msgQueue.MsgQueueData) ([]*dbData[clientModel.FileDataModel], error) {
+	tmpDBData := make([]*dbData[clientModel.FileDataModel], len(queueData))
+	for idx, itm := range queueData {
+		if itm.FileMetaData.PreUploadFileMetaDataModel != nil {
+			tmpDBData[idx] = &dbData[clientModel.FileDataModel]{
+				Tag: tag,
+				Data: &clientModel.PreUploadFileDataModel{
+					PreUploadFileMetaDataModel: *itm.FileMetaData.PreUploadFileMetaDataModel,
+				},
+			}
+		} else if itm.FileMetaData.UploadFileMetaDataModel != nil {
+			tmpDBData[idx] = &dbData[clientModel.FileDataModel]{
+				Tag: tag,
+				Data: &clientModel.UploadFileDataModel{
+					UploadFileMetaDataModel: *itm.FileMetaData.UploadFileMetaDataModel,
+				},
+			}
+		} else {
+			return tmpDBData, errors.New("unknown type In pushQueueData")
 		}
 	}
-	if len(ibList) > 0 {
-		if err := ib.Insert(ibList); err != nil {
-			logrus.Error(err)
-		}
-	}
+	return tmpDBData, nil
 }
 
 func pushQueueData() {
 	// TODO: maybe we can move this out of sqlite.go, Consider dynamic registration functions
-	// PreUploadFileDataModel
-	preUploadQueue := storageQueue.GetPreUploadQueue()
-	if preUploadQueue != nil {
-		tmpData, _ := preUploadQueue.PopAll()
-		tmpDBData := make([]*dbData[clientModel.FileDataModel], len(tmpData))
-		for i, data := range tmpData {
-			tmpDBData[i] = &dbData[clientModel.FileDataModel]{Tag: QueueDataTag, Data: data}
-		}
-		if err := InsertBatchDbData(tmpDBData); err != nil {
-			logrus.Error(err)
-		}
+	queue := msgQueue.NewMessageQueue()
+	// activate msg queue
+	activateMsgList, err := queue.PopAll(msgQueue.ActivateQueue)
+	if err != nil {
+		logrus.Error(err)
 	}
-	// UploadFileDataModel
-	postUploadQueue := storageQueue.GetUploadQueue()
-	if postUploadQueue != nil {
-		tmpData, _ := postUploadQueue.PopAll()
-		tmpDBData := make([]*dbData[clientModel.FileDataModel], len(tmpData))
-		for i, data := range tmpData {
-			tmpDBData[i] = &dbData[clientModel.FileDataModel]{Tag: QueueDataTag, Data: data}
-		}
-		if err := InsertBatchDbData(tmpDBData); err != nil {
-			logrus.Error(err)
-		}
+	activateQueueData, err := transMsgQueueData(ActivateQueueDataTag, activateMsgList)
+	if err != nil {
+		logrus.Error(err)
+	}
+	if err = InsertBatchDbData[clientModel.FileDataModel](activateQueueData); err != nil {
+		logrus.Error(err)
+	}
+	// dead msg queue
+	deadMsgList, err := queue.PopAll(msgQueue.DeadQueue)
+	if err != nil {
+		logrus.Error(err)
+	}
+	deadQueueData, err := transMsgQueueData(DeadQueueDataTag, deadMsgList)
+	if err != nil {
+		logrus.Error(err)
+	}
+	if err = InsertBatchDbData[clientModel.FileDataModel](deadQueueData); err != nil {
+		logrus.Error(err)
 	}
 }

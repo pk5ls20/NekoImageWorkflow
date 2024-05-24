@@ -62,7 +62,7 @@ func (a *APIFetcher) FetchList(cf []*config.APIScraperSourceConfig) ([]*apiModel
 			return nil, commonLog.ErrorWrap(err)
 		}
 		for _, url := range parsedUrls {
-			data, _err := clientModel.NewScraperPreUploadFileData(commonModel.APIScraperType, a.scraperID, url)
+			data, _err := clientModel.NewPreUploadFileData(commonModel.APIScraperType, a.scraperID, url)
 			if _err != nil {
 				return nil, commonLog.ErrorWrap(_err)
 			}

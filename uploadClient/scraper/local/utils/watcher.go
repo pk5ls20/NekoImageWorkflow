@@ -6,7 +6,7 @@ import (
 	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
-	storageQueue "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/queue"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/msgQueue"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +21,7 @@ func NewWatcher(scID int, watchFolders []string) error {
 		}
 	}(watcher)
 	go func() {
-		preUploadQueue := storageQueue.GetPreUploadQueue()
+		queue := msgQueue.NewMessageQueue()
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -31,13 +31,26 @@ func NewWatcher(scID int, watchFolders []string) error {
 				logrus.Debug("event:", event)
 				if event.Has(fsnotify.Create) {
 					logrus.Debug("create file:", event.Name)
-					d, err := clientModel.NewScraperPreUploadFileData(commonModel.LocalScraperType, scID, event.Name)
+					d, err := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, scID, event.Name)
 					if err != nil {
 						logrus.Errorf("Failed to create ScraperPreUploadFileData: %v", err)
 						continue
 					}
-					if _err := preUploadQueue.Insert([]*clientModel.PreUploadFileDataModel{d}); _err != nil {
-						logrus.Errorf("Failed to insert file into preUploadQueue: %v", err)
+					data := msgQueue.MsgQueueData{
+						MsgMetaData: msgQueue.MsgMetaData{
+							UploadType: commonModel.PreUploadType,
+							MsgMetaID: msgQueue.MsgMetaID{
+								ScraperType: commonModel.LocalScraperType,
+								ScraperID:   scID,
+								MsgGroupID:  0, //TODO:
+							},
+						},
+						FileMetaData: &clientModel.AnyFileMetaDataModel{
+							PreUploadFileMetaDataModel: &d.PreUploadFileMetaDataModel,
+						},
+					}
+					if _err := queue.AddElement(&data); _err != nil {
+						logrus.Errorf("Failed to add file into msgQueue: %v", err)
 					}
 				}
 			case err_, ok := <-watcher.Errors:

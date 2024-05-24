@@ -8,6 +8,7 @@ import (
 	apiModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/api/model"
 	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
 	clientConfig "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
+	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/msgQueue"
 	"github.com/sirupsen/logrus"
 )
 
@@ -55,8 +56,21 @@ func (c *APIScraper) PrepareData() error {
 			logrus.Warn("Task failed", task)
 			continue
 		}
-		if _err := c.PreUploadQueue.Insert([]*clientModel.PreUploadFileDataModel{task.FetchData}); _err != nil {
-			return _err
+		msgQueueData := &msgQueue.MsgQueueData{
+			MsgMetaData: msgQueue.MsgMetaData{
+				UploadType: commonModel.PreUploadType,
+				MsgMetaID: msgQueue.MsgMetaID{
+					ScraperID:   c.ScraperID,
+					ScraperType: c.GetType(),
+					MsgGroupID:  0, //TODO:
+				},
+			},
+			FileMetaData: &clientModel.AnyFileMetaDataModel{
+				PreUploadFileMetaDataModel: &task.FetchData.PreUploadFileMetaDataModel,
+			},
+		}
+		if _err := c.MsgQueue.AddElement(msgQueueData); _err != nil {
+			return err
 		}
 	}
 	return nil
@@ -76,16 +90,29 @@ func (c *APIScraper) ProcessData() error {
 		if err != nil {
 			return commonLog.ErrorWrap(err)
 		}
-		uploadModels := make([]*clientModel.UploadFileDataModel, 0, len(doneTasks))
+		uploadModels := make([]*msgQueue.MsgQueueData, 0, len(doneTasks))
 		for _, task := range doneTasks {
 			if !task.Success {
 				logrus.Warnf("Task failed: %v", task.FetchData)
 				continue
 			}
-			uploadModels = append(uploadModels, task.FetchData)
+			msgQueueData := &msgQueue.MsgQueueData{
+				MsgMetaData: msgQueue.MsgMetaData{
+					UploadType: commonModel.PostUploadType,
+					MsgMetaID: msgQueue.MsgMetaID{
+						ScraperID:   c.ScraperID,
+						ScraperType: c.GetType(),
+						MsgGroupID:  0, //TODO:
+					},
+				},
+				FileMetaData: &clientModel.AnyFileMetaDataModel{
+					UploadFileMetaDataModel: &task.FetchData.UploadFileMetaDataModel,
+				},
+			}
+			uploadModels = append(uploadModels, msgQueueData)
 		}
-		if _err := c.UploadQueue.Insert(uploadModels); _err != nil {
-			return _err
+		if _err := c.MsgQueue.AddElements(uploadModels); _err != nil {
+			return err
 		}
 		tasks = tasks[:0]
 	}

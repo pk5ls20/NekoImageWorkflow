@@ -17,7 +17,7 @@ type BaseFileDataModel interface {
 // FileDataModel Requires specific transport DataModel (just below) implementation
 type FileDataModel interface {
 	BaseFileDataModel
-	// calculateUUID is a function that calculates the UUID of the resourceUri / file
+	// calculateUUID is a function that calculates the UUID of the ResourceUri / file
 	// only call in the constructor
 	calculateUUID() error
 	GetScraperID() int
@@ -28,95 +28,126 @@ type FileDataModel interface {
 	FinishUpload() error
 }
 
+type PreUploadFileMetaDataModel struct {
+	ScraperType  commonModel.ScraperType
+	ScraperID    int
+	ResourceUUID uuid.UUID
+	ResourceUri  string
+}
+
 // PreUploadFileDataModel
-// resourceUUID Used to uniquely identify the resource
-// resourceUri resource uri, maybe file path (local) or file url (API)
+// ResourceUUID Used to uniquely identify the resource
+// ResourceUri resource uri, maybe file path (local) or file url (API)
 type PreUploadFileDataModel struct {
 	FileDataModel
-	scraperType  commonModel.ScraperType
-	scraperID    int
-	resourceUUID uuid.UUID
-	resourceUri  string
+	PreUploadFileMetaDataModel
+}
+
+type UploadFileMetaDataModel struct {
+	ScraperType commonModel.ScraperType
+	ScraperID   int
+	FileUUID    uuid.UUID
+	FilePath    string
+	IsTempFile  bool
 }
 
 // UploadFileDataModel
-// fileUUID Used to uniquely identify the uploaded file
-// filePath The actual path of the file locally
+// FileUUID Used to uniquely identify the uploaded file
+// FilePath The actual path of the file locally
 type UploadFileDataModel struct {
 	FileDataModel
-	scraperType commonModel.ScraperType
-	scraperID   int
-	fileUUID    uuid.UUID
-	filePath    string
-	isTempFile  bool
+	UploadFileMetaDataModel
+}
+
+type AnyFileMetaDataModel struct {
+	*PreUploadFileMetaDataModel
+	*UploadFileMetaDataModel
 }
 
 func (s *PreUploadFileDataModel) calculateUUID() error {
-	_uuid := commonUUID.GenerateStrUUID(s.resourceUri)
-	s.resourceUUID = _uuid
+	_uuid := commonUUID.GenerateStrUUID(s.ResourceUri)
+	s.ResourceUUID = _uuid
 	return nil
 }
 
 func (s *PreUploadFileDataModel) GetScraperID() int {
-	return s.scraperID
+	return s.ScraperID
 }
 
 func (s *UploadFileDataModel) calculateUUID() error {
-	_uuid, err := commonUUID.GenerateFileUUID(s.filePath)
+	_uuid, err := commonUUID.GenerateFileUUID(s.FilePath)
 	if err != nil {
 		return commonLog.ErrorWrap(err)
 	}
-	s.fileUUID = _uuid
+	s.FileUUID = _uuid
 	return nil
 }
 
 func (s *UploadFileDataModel) GetScraperID() int {
-	return s.scraperID
+	return s.ScraperID
 }
 
 func (s *UploadFileDataModel) FinishUpload() error {
-	if s.isTempFile {
-		logrus.Debug("Delete temp file: ", s.filePath)
-		if err := os.Remove(s.filePath); err != nil {
+	if s.IsTempFile {
+		logrus.Debug("Delete temp file: ", s.FilePath)
+		if err := os.Remove(s.FilePath); err != nil {
 			return commonLog.ErrorWrap(err)
 		}
 	}
 	return nil
 }
 
-func NewScraperPreUploadFileData(scType commonModel.ScraperType, scID int, uri string) (*PreUploadFileDataModel, error) {
+func NewPreUploadFileData(scType commonModel.ScraperType, scID int, uri string) (*PreUploadFileDataModel, error) {
 	m := &PreUploadFileDataModel{
-		scraperType: scType,
-		resourceUri: uri,
-		scraperID:   scID,
+		PreUploadFileMetaDataModel: PreUploadFileMetaDataModel{
+			ScraperType: scType,
+			ScraperID:   scID,
+			ResourceUri: uri,
+		},
 	}
 	err := m.calculateUUID()
 	return m, err
 }
 
-func NewScraperUploadFileData(model *PreUploadFileDataModel) *UploadFileDataModel {
+func NewUploadFileData(model *PreUploadFileDataModel) *UploadFileDataModel {
 	m := &UploadFileDataModel{
-		scraperType: model.scraperType,
-		scraperID:   model.scraperID,
-		fileUUID:    model.resourceUUID,
-		filePath:    model.resourceUri,
-		isTempFile:  false,
+		UploadFileMetaDataModel: UploadFileMetaDataModel{
+			ScraperType: model.ScraperType,
+			ScraperID:   model.ScraperID,
+			FileUUID:    model.ResourceUUID,
+			FilePath:    model.ResourceUri,
+			IsTempFile:  false,
+		},
 	}
 	return m
 }
 
-func NewScraperUploadTempFileData(scType commonModel.ScraperType, scID int, fileContent []byte) (*UploadFileDataModel, error) {
+func NewUploadTempFileData(scType commonModel.ScraperType, scID int, fileContent []byte) (*UploadFileDataModel, error) {
 	t := tmpStorage.NewTmpFile()
 	filePath, fileUUID, err := t.Create(fileContent, ".tmp")
 	if err != nil {
 		return nil, commonLog.ErrorWrap(err)
 	}
 	m := &UploadFileDataModel{
-		scraperType: scType,
-		filePath:    filePath,
-		isTempFile:  true,
-		fileUUID:    fileUUID,
-		scraperID:   scID,
+		UploadFileMetaDataModel: UploadFileMetaDataModel{
+			ScraperType: scType,
+			ScraperID:   scID,
+			FileUUID:    fileUUID,
+			FilePath:    filePath,
+			IsTempFile:  true,
+		},
 	}
 	return m, nil
+}
+
+func NewPreUploadFileDataFromMeta(meta *PreUploadFileMetaDataModel) *PreUploadFileDataModel {
+	return &PreUploadFileDataModel{
+		PreUploadFileMetaDataModel: *meta,
+	}
+}
+
+func NewUploadFileDataFromMeta(meta *UploadFileMetaDataModel) *UploadFileDataModel {
+	return &UploadFileDataModel{
+		UploadFileMetaDataModel: *meta,
+	}
 }

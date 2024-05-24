@@ -155,7 +155,7 @@ func (s *APISpider) httpRequest(task *apiModel.SpiderDoTask) {
 				time.Sleep(s.singleTaskRetryDuration.Get())
 				continue
 			}
-			if fetchData, err := clientModel.NewScraperUploadTempFileData(
+			if fetchData, err := clientModel.NewUploadTempFileData(
 				commonModel.APIScraperType,
 				task.ScraperID,
 				resData,
