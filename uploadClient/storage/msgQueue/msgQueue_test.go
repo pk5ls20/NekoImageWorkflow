@@ -82,7 +82,7 @@ func TestAddElementAndPop(t *testing.T) {
 		t.Errorf("Element was not added to the activateQueue")
 	} else {
 		set := val.(*sync.Map)
-		if _, exist := set.Load(msgData.MsgMetaData); !exist {
+		if _, exist := set.Load(getMsgPureData(msgData)); !exist {
 			t.Errorf("Added element is not in the set")
 		}
 	}
@@ -90,7 +90,7 @@ func TestAddElementAndPop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PopID() failed: %v", err)
 	}
-	if poppedData != msgData {
+	if poppedData[0] != msgData {
 		t.Errorf("Popped data does not match the sent data")
 	} else {
 		t.Logf("Popped data matches the sent data")
@@ -102,7 +102,7 @@ func TestAddElementsAndPopAll(t *testing.T) {
 	msgQueueDataSlice := make([]*MsgQueueData, 0)
 	// 3-1003
 	scpStartNo := 3
-	// Same MsgMetaData
+	// Same MsgMetaData + Same FileMetaData
 	for i := scpStartNo; i < testNum/2+scpStartNo; i++ {
 		md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, "1", msgGroupID, "test.jpg")
 		msgQueueDataSlice = append(msgQueueDataSlice, &MsgQueueData{
@@ -119,20 +119,26 @@ func TestAddElementsAndPopAll(t *testing.T) {
 			},
 		})
 	}
-	// Different MsgMetaData
+	// Same MsgMetaData + Different FileMetaData
 	for i := scpStartNo + testNum/2; i < scpStartNo+testNum; i++ {
-		md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, "1", msgGroupID, "test.jpg")
+		md, _ := clientModel.NewPreUploadFileData(
+			commonModel.LocalScraperType,
+			"1",
+			msgGroupID,
+			fmt.Sprintf("test%d.jpg", i),
+		)
 		msgQueueDataSlice = append(msgQueueDataSlice, &MsgQueueData{
 			MsgMetaData: MsgMetaData{
 				UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo)),
 				MsgMetaID: MsgMetaID{
-					ScraperID:   strconv.Itoa(i),
+					ScraperID:   "1",
 					MsgGroupID:  strconv.Itoa(1),
 					ScraperType: commonModel.LocalScraperType,
 				},
 			},
 			FileMetaData: &clientModel.AnyFileMetaDataModel{
 				PreUploadFileMetaDataModel: &md.PreUploadFileMetaDataModel,
+				UploadFileMetaDataModel:    &clientModel.UploadFileMetaDataModel{},
 			},
 		})
 	}
@@ -145,7 +151,7 @@ func TestAddElementsAndPopAll(t *testing.T) {
 			t.Errorf("Element with ScraperID %s was not added to the activateQueue", data.MsgMetaData.ScraperID)
 		} else {
 			set := val.(*sync.Map)
-			_, exist := set.Load(data.MsgMetaData)
+			_, exist := set.Load(getMsgPureData(data))
 			if !exist {
 				t.Errorf("Added element with ScraperID %s is not in the set", data.MsgMetaData.ScraperID)
 			}
@@ -387,7 +393,7 @@ func TestCommitAndGoDead(t *testing.T) {
 		t.Errorf("MsgQueueData was not removed from the activateQueue after Commit()")
 	}
 	if ele, ok := queue.deadQueue.Load(msgData2.MsgMetaData); ok {
-		if _, _ok := ele.(*sync.Map).Load(msgData2.MsgMetaData); _ok {
+		if _, _ok := ele.(*sync.Map).Load(getMsgPureData(msgData2)); _ok {
 			t.Logf("MsgQueueData was added to the DeadQueue after GoDead()")
 		} else {
 			t.Errorf("MsgQueueData was not added to the DeadQueue after GoDead()")
@@ -429,7 +435,7 @@ func TestConcurrentAddAndRemove(t *testing.T) {
 				}
 				if poppedData, err := queue.PopData(msgData.MsgMetaData); err != nil {
 					t.Errorf("PopID() failed: %v", err)
-				} else if poppedData != msgData {
+				} else if poppedData[0] != msgData {
 					t.Errorf("Popped data does not match added data: added %v, popped %v", msgData, poppedData)
 				}
 			}
@@ -569,9 +575,10 @@ func TestConcurrentListening3(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	scpStartNo := 8000
-	wg.Add(numListeners)
+	wg.Add(1)
 	var all int32
 	go func() {
+		defer wg.Done()
 		ch, err := queue.ListenUploadType(ctx, commonModel.UploadType(strconv.Itoa(scpStartNo)))
 		if err != nil {
 			t.Errorf("ListenUploadType() failed for UploadType %d: %v", scpStartNo, err)
@@ -584,6 +591,9 @@ func TestConcurrentListening3(t *testing.T) {
 			} else {
 				t.Logf("Received correct UploadType %s", commonModel.UploadType(strconv.Itoa(scpStartNo)))
 				atomic.AddInt32(&all, 1)
+			}
+			if atomic.LoadInt32(&all) == int32(numListeners) {
+				return
 			}
 		}
 	}()
@@ -609,10 +619,9 @@ func TestConcurrentListening3(t *testing.T) {
 			t.Fatalf("AddElement() failed: %v", err)
 		}
 		logrus.Debugf("Added element with ScraperType %d", i)
-		wg.Done()
 	}
 	wg.Wait()
-	if atomic.LoadInt32(&all) != 1 {
+	if atomic.LoadInt32(&all) != int32(numListeners) {
 		t.Errorf("Mismatch in the number of listeners and received data: listeners %d, received %d",
 			1, atomic.LoadInt32(&all))
 	} else {

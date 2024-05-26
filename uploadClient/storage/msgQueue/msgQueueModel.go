@@ -45,12 +45,18 @@ type MsgQueueData struct {
 	FileMetaData *clientModel.AnyFileMetaDataModel
 }
 
+type msgPureData struct {
+	MsgMetaID      MsgMetaID
+	PreUploadModel clientModel.PreUploadFileMetaDataModel
+	UploadModel    clientModel.UploadFileMetaDataModel
+}
+
 type messageQueue interface {
 	AddElement(data *MsgQueueData) error
 	AddElements(dataSlice []*MsgQueueData) error
 	ListenUploadType(ctx context.Context, uploadType commonModel.UploadType) (<-chan *MsgQueueData, error)
 	ListenMsgMetaData(data MsgMetaData) (<-chan *MsgQueueData, error)
-	PopData(data MsgMetaData) (*MsgQueueData, error)
+	PopData(data MsgMetaData) ([]*MsgQueueData, error)
 	PopAll(queueType msgQueueType) ([]*MsgQueueData, error)
 }
 

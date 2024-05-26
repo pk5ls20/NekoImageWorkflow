@@ -65,7 +65,7 @@ func (a *APIFetcher) FetchList(cf []*config.APIScraperSourceConfig) ([]*apiModel
 			data, _err := clientModel.NewPreUploadFileData(
 				commonModel.APIScraperType,
 				a.scraperID,
-				url, // here we use url to identify the MsgGroupID
+				task.APIAddress, // here we use task.APIAddress to identify the "message group"
 				url,
 			)
 			if _err != nil {
@@ -78,7 +78,7 @@ func (a *APIFetcher) FetchList(cf []*config.APIScraperSourceConfig) ([]*apiModel
 					Cookies: task.Cookies,
 				},
 				ScraperID:  a.scraperID,
-				MsgGroupID: url,
+				MsgGroupID: task.APIAddress,
 				FetchData:  data,
 			}
 			infoList = append(infoList, newTask)

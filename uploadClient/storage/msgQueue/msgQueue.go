@@ -26,13 +26,30 @@ func NewMessageQueue() *MessageQueue {
 	return messageQueueInstance
 }
 
+func getMsgPureData(data *MsgQueueData) msgPureData {
+	d := msgPureData{
+		MsgMetaID: data.MsgMetaID,
+	}
+	if data.FileMetaData == nil {
+		return d
+	}
+	if data.FileMetaData.PreUploadFileMetaDataModel != nil {
+		d.PreUploadModel = *data.FileMetaData.PreUploadFileMetaDataModel
+	}
+	if data.FileMetaData.UploadFileMetaDataModel != nil {
+		d.UploadModel = *data.FileMetaData.UploadFileMetaDataModel
+	}
+	return d
+}
+
 func (mq *MessageQueue) AddElement(data *MsgQueueData) error {
 	if !mq.initialize {
 		return commonLog.ErrorWrap(errors.New("MessageQueue not initialized"))
 	}
 	// Add to the activateQueue
 	activateQueueEntry, _ := mq.activateQueue.LoadOrStore(data.MsgMetaData, &sync.Map{})
-	activateQueueEntry.(*sync.Map).Store(data.MsgMetaData, data)
+	pureData := getMsgPureData(data)
+	activateQueueEntry.(*sync.Map).Store(pureData, data)
 	// Add MsgMetaData to the listener
 	uploadTypeEntry, _ := mq.uploadTypeElementChan.LoadOrStore(data.UploadType, make(chan *MsgQueueData, 10000))
 	go func() {
@@ -78,7 +95,7 @@ func (mq *MessageQueue) ListenUploadType(ctx context.Context, uploadType commonM
 		logrus.Debugf("Start to listen further uploadTypeElementChan for uploadType %s", uploadType)
 		entry, exist := mq.uploadTypeElementChan.LoadOrStore(uploadType, make(chan *MsgQueueData, 10000))
 		logrus.Debugf("uploadTypeElementChan for uploadType %s exists: %t", uploadType, exist)
-		mp := make(map[MsgMetaData]MsgQueueData)
+		mp := make(map[msgPureData]MsgQueueData)
 		var itm *MsgQueueData
 		var ok bool
 		for {
@@ -91,11 +108,12 @@ func (mq *MessageQueue) ListenUploadType(ctx context.Context, uploadType commonM
 					logrus.Debug("Channel closed, performing cleanup")
 					return
 				}
-				if _, exists := mp[itm.MsgMetaData]; exists {
+				pureData := getMsgPureData(itm)
+				if _, exists := mp[pureData]; exists {
 					logrus.Debugf("Element already exists in the map...")
 					continue
 				}
-				mp[itm.MsgMetaData] = *itm
+				mp[pureData] = *itm
 				mainChan <- itm
 			}
 		}
@@ -128,26 +146,23 @@ func (mq *MessageQueue) ListenMsgMetaData(data MsgMetaData) (<-chan *MsgQueueDat
 	return ch, nil
 }
 
-func (mq *MessageQueue) PopData(data MsgMetaData) (*MsgQueueData, error) {
+func (mq *MessageQueue) PopData(data MsgMetaData) ([]*MsgQueueData, error) {
 	mq.lock.Lock()
 	defer mq.lock.Unlock()
+	var elements []*MsgQueueData
 	if !mq.initialize {
-		return &MsgQueueData{}, commonLog.ErrorWrap(errors.New("MessageQueue not initialized"))
+		return elements, commonLog.ErrorWrap(errors.New("MessageQueue not initialized"))
 	}
 	entry, ok := mq.activateQueue.Load(data)
 	if !ok {
-		return &MsgQueueData{}, commonLog.ErrorWrap(errors.New("no such message group"))
+		return elements, commonLog.ErrorWrap(errors.New("no such message group"))
 	}
-	element, ok := entry.(*sync.Map).LoadAndDelete(data)
-	if !ok {
-		return &MsgQueueData{}, commonLog.ErrorWrap(errors.New("no element in the message group"))
-	}
-	msgData, ok := element.(*MsgQueueData)
-	if !ok {
-		return nil, commonLog.ErrorWrap(errors.New("type assertion to *MsgQueueData failed"))
-	}
+	entry.(*sync.Map).Range(func(key, value interface{}) bool {
+		elements = append(elements, value.(*MsgQueueData))
+		return true
+	})
 	mq.activateQueue.Delete(data)
-	return msgData, nil
+	return elements, nil
 }
 
 // PopAll TODO: lock?
@@ -188,7 +203,7 @@ func (mq *MsgQueueData) Commit() error {
 	if !ok {
 		return commonLog.ErrorWrap(errors.New("MessageQueue not found"))
 	}
-	q.(*sync.Map).Delete(mq.MsgMetaData)
+	q.(*sync.Map).Delete(getMsgPureData(mq))
 	return nil
 }
 
@@ -202,6 +217,6 @@ func (mq *MsgQueueData) GoDead() error {
 		return commonLog.ErrorWrap(err)
 	}
 	entry, _ := messageQueueInstance.deadQueue.LoadOrStore(mq.MsgMetaData, &sync.Map{})
-	entry.(*sync.Map).Store(mq.MsgMetaData, mq)
+	entry.(*sync.Map).Store(getMsgPureData(mq), mq)
 	return nil
 }
