@@ -3,7 +3,6 @@ package msgQueue
 import (
 	"context"
 	"errors"
-	mapset "github.com/deckarep/golang-set/v2"
 	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	"github.com/sirupsen/logrus"
@@ -32,8 +31,8 @@ func (mq *MessageQueue) AddElement(data *MsgQueueData) error {
 		return commonLog.ErrorWrap(errors.New("MessageQueue not initialized"))
 	}
 	// Add to the activateQueue
-	activateQueueEntry, _ := mq.activateQueue.LoadOrStore(data.MsgMetaData, mapset.NewSet[*MsgQueueData]())
-	activateQueueEntry.(msgQueueDataSet).Add(data)
+	activateQueueEntry, _ := mq.activateQueue.LoadOrStore(data.MsgMetaData, &sync.Map{})
+	activateQueueEntry.(*sync.Map).Store(data.MsgMetaData, data)
 	// Add MsgMetaData to the listener
 	uploadTypeEntry, _ := mq.uploadTypeElementChan.LoadOrStore(data.UploadType, make(chan *MsgQueueData, 10000))
 	go func() {
@@ -79,7 +78,7 @@ func (mq *MessageQueue) ListenUploadType(ctx context.Context, uploadType commonM
 		logrus.Debugf("Start to listen further uploadTypeElementChan for uploadType %s", uploadType)
 		entry, exist := mq.uploadTypeElementChan.LoadOrStore(uploadType, make(chan *MsgQueueData, 10000))
 		logrus.Debugf("uploadTypeElementChan for uploadType %s exists: %t", uploadType, exist)
-		mp := make(map[MsgQueueData]struct{})
+		mp := make(map[MsgMetaData]MsgQueueData)
 		var itm *MsgQueueData
 		var ok bool
 		for {
@@ -92,11 +91,11 @@ func (mq *MessageQueue) ListenUploadType(ctx context.Context, uploadType commonM
 					logrus.Debug("Channel closed, performing cleanup")
 					return
 				}
-				if _, exists := mp[*itm]; exists {
+				if _, exists := mp[itm.MsgMetaData]; exists {
 					logrus.Debugf("Element already exists in the map...")
 					continue
 				}
-				mp[*itm] = struct{}{}
+				mp[itm.MsgMetaData] = *itm
 				mainChan <- itm
 			}
 		}
@@ -116,7 +115,17 @@ func (mq *MessageQueue) ListenMsgMetaData(data MsgMetaData) (<-chan *MsgQueueDat
 	if !ok {
 		return nil, commonLog.ErrorWrap(errors.New("no such message group"))
 	}
-	return entry.(msgQueueDataSet).Iter(), nil
+	ch := make(chan *MsgQueueData)
+	go func() {
+		defer close(ch)
+		entry.(*sync.Map).Range(func(key, value interface{}) bool {
+			if msgData, _ok := value.(*MsgQueueData); _ok {
+				ch <- msgData
+			}
+			return true
+		})
+	}()
+	return ch, nil
 }
 
 func (mq *MessageQueue) PopData(data MsgMetaData) (*MsgQueueData, error) {
@@ -129,12 +138,16 @@ func (mq *MessageQueue) PopData(data MsgMetaData) (*MsgQueueData, error) {
 	if !ok {
 		return &MsgQueueData{}, commonLog.ErrorWrap(errors.New("no such message group"))
 	}
-	element, ok := entry.(msgQueueDataSet).Pop()
+	element, ok := entry.(*sync.Map).LoadAndDelete(data)
 	if !ok {
 		return &MsgQueueData{}, commonLog.ErrorWrap(errors.New("no element in the message group"))
 	}
+	msgData, ok := element.(*MsgQueueData)
+	if !ok {
+		return nil, commonLog.ErrorWrap(errors.New("type assertion to *MsgQueueData failed"))
+	}
 	mq.activateQueue.Delete(data)
-	return element, nil
+	return msgData, nil
 }
 
 // PopAll TODO: lock?
@@ -155,8 +168,11 @@ func (mq *MessageQueue) PopAll(queueType msgQueueType) ([]*MsgQueueData, error) 
 		return nil, commonLog.ErrorWrap(errors.New("invalid msgQueue type"))
 	}
 	currentQueueMap.Range(func(k, v interface{}) bool {
-		elements = append(elements, v.(msgQueueDataSet).ToSlice()...)
-		v.(msgQueueDataSet).Clear()
+		v.(*sync.Map).Range(func(key, value interface{}) bool {
+			elements = append(elements, value.(*MsgQueueData))
+			return true
+		})
+		currentQueueMap.Delete(k)
 		return true
 	})
 	return elements, nil
@@ -172,7 +188,7 @@ func (mq *MsgQueueData) Commit() error {
 	if !ok {
 		return commonLog.ErrorWrap(errors.New("MessageQueue not found"))
 	}
-	q.(msgQueueDataSet).Remove(mq)
+	q.(*sync.Map).Delete(mq.MsgMetaData)
 	return nil
 }
 
@@ -185,7 +201,7 @@ func (mq *MsgQueueData) GoDead() error {
 	if err := mq.Commit(); err != nil {
 		return commonLog.ErrorWrap(err)
 	}
-	entry, _ := messageQueueInstance.deadQueue.LoadOrStore(mq.MsgMetaData, mapset.NewSet[*MsgQueueData]())
-	entry.(msgQueueDataSet).Add(mq)
+	entry, _ := messageQueueInstance.deadQueue.LoadOrStore(mq.MsgMetaData, &sync.Map{})
+	entry.(*sync.Map).Store(mq.MsgMetaData, mq)
 	return nil
 }

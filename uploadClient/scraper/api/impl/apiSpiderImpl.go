@@ -158,6 +158,7 @@ func (s *APISpider) httpRequest(task *apiModel.SpiderDoTask) {
 			if fetchData, err := clientModel.NewUploadTempFileData(
 				commonModel.APIScraperType,
 				task.ScraperID,
+				task.MsgGroupID,
 				resData,
 			); err != nil {
 				logrus.Errorf("Failed to create temp file data due to err: %v", err)

@@ -15,16 +15,17 @@ import (
 )
 
 const testNum = 1000
+const msgGroupID = "0"
 
 func TestInit(t *testing.T) {
 	queue := MessageQueue{}
-	md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, 1, "test.jpg")
+	md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, "1", msgGroupID, "test.jpg")
 	msgData := &MsgQueueData{
 		MsgMetaData: MsgMetaData{
 			UploadType: commonModel.PreUploadType,
 			MsgMetaID: MsgMetaID{
-				ScraperID:   1,
-				MsgGroupID:  1,
+				ScraperID:   "1",
+				MsgGroupID:  strconv.Itoa(1),
 				ScraperType: commonModel.APIScraperType,
 			},
 		},
@@ -60,14 +61,14 @@ func TestInit(t *testing.T) {
 
 func TestAddElementAndPop(t *testing.T) {
 	queue := NewMessageQueue()
-	md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, 1, "test.jpg")
+	md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, "1", msgGroupID, "test.jpg")
 	msgData := &MsgQueueData{
 		MsgMetaData: MsgMetaData{
 			UploadType: commonModel.PostUploadType,
 			MsgMetaID: MsgMetaID{
 				ScraperType: commonModel.LocalScraperType,
-				ScraperID:   1,
-				MsgGroupID:  1,
+				ScraperID:   "1",
+				MsgGroupID:  strconv.Itoa(1),
 			},
 		},
 		FileMetaData: &clientModel.AnyFileMetaDataModel{
@@ -80,8 +81,8 @@ func TestAddElementAndPop(t *testing.T) {
 	if val, ok := queue.activateQueue.Load(msgData.MsgMetaData); !ok {
 		t.Errorf("Element was not added to the activateQueue")
 	} else {
-		set := val.(msgQueueDataSet)
-		if !set.Contains(msgData) {
+		set := val.(*sync.Map)
+		if _, exist := set.Load(msgData.MsgMetaData); !exist {
 			t.Errorf("Added element is not in the set")
 		}
 	}
@@ -101,14 +102,32 @@ func TestAddElementsAndPopAll(t *testing.T) {
 	msgQueueDataSlice := make([]*MsgQueueData, 0)
 	// 3-1003
 	scpStartNo := 3
-	for i := scpStartNo; i < testNum+scpStartNo; i++ {
-		md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, 1, "test.jpg")
+	// Same MsgMetaData
+	for i := scpStartNo; i < testNum/2+scpStartNo; i++ {
+		md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, "1", msgGroupID, "test.jpg")
 		msgQueueDataSlice = append(msgQueueDataSlice, &MsgQueueData{
 			MsgMetaData: MsgMetaData{
 				UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo)),
 				MsgMetaID: MsgMetaID{
-					ScraperID:   1,
-					MsgGroupID:  1,
+					ScraperID:   "1",
+					MsgGroupID:  strconv.Itoa(1),
+					ScraperType: commonModel.LocalScraperType,
+				},
+			},
+			FileMetaData: &clientModel.AnyFileMetaDataModel{
+				PreUploadFileMetaDataModel: &md.PreUploadFileMetaDataModel,
+			},
+		})
+	}
+	// Different MsgMetaData
+	for i := scpStartNo + testNum/2; i < scpStartNo+testNum; i++ {
+		md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, "1", msgGroupID, "test.jpg")
+		msgQueueDataSlice = append(msgQueueDataSlice, &MsgQueueData{
+			MsgMetaData: MsgMetaData{
+				UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo)),
+				MsgMetaID: MsgMetaID{
+					ScraperID:   strconv.Itoa(i),
+					MsgGroupID:  strconv.Itoa(1),
 					ScraperType: commonModel.LocalScraperType,
 				},
 			},
@@ -123,11 +142,12 @@ func TestAddElementsAndPopAll(t *testing.T) {
 	}
 	for _, data := range msgQueueDataSlice {
 		if val, ok := queue.activateQueue.Load(data.MsgMetaData); !ok {
-			t.Errorf("Element with ScraperID %d was not added to the activateQueue", data.MsgMetaData.ScraperID)
+			t.Errorf("Element with ScraperID %s was not added to the activateQueue", data.MsgMetaData.ScraperID)
 		} else {
-			set := val.(msgQueueDataSet)
-			if !set.Contains(data) {
-				t.Errorf("Added element with ScraperID %d is not in the set", data.MsgMetaData.ScraperID)
+			set := val.(*sync.Map)
+			_, exist := set.Load(data.MsgMetaData)
+			if !exist {
+				t.Errorf("Added element with ScraperID %s is not in the set", data.MsgMetaData.ScraperID)
 			}
 		}
 	}
@@ -135,7 +155,8 @@ func TestAddElementsAndPopAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PopAll() failed: %v", err)
 	}
-	if len(poppedDataSlice) != testNum {
+	// len(poppedDataSlice) must be testNum/2+1 cuz they have same MsgMetaData(1) and different MsgMetaData(testNum/2)
+	if len(poppedDataSlice) != testNum/2+1 {
 		t.Errorf("Popped data slice length does not match the sent data slice length")
 	} else {
 		t.Logf("Popped data slice length matches the sent data slice length")
@@ -149,7 +170,7 @@ func TestAddElementsAndPopAll(t *testing.T) {
 			}
 		}
 	}
-	if foundTime != testNum {
+	if foundTime != testNum/2+1 {
 		t.Errorf("Popped data slice does not match the sent data slice")
 	} else {
 		t.Logf("Popped data slice matches the sent data slice")
@@ -163,6 +184,9 @@ func TestAddElementsAndPopAll(t *testing.T) {
 	} else {
 		t.Logf("Popped data slice length matches the sent data slice length")
 	}
+	if _, _err := queue.PopAll(msgQueueType(114514)); _err == nil {
+		t.Errorf("PopAll() should fail with invalid msgQueue type")
+	}
 }
 
 func TestListenChan(t *testing.T) {
@@ -170,13 +194,18 @@ func TestListenChan(t *testing.T) {
 	scpStartNo := 2000
 	wg := sync.WaitGroup{}
 	// element
-	md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, scpStartNo, "test.jpg")
+	md, _ := clientModel.NewPreUploadFileData(
+		commonModel.LocalScraperType,
+		strconv.Itoa(scpStartNo),
+		msgGroupID,
+		"test.jpg",
+	)
 	msgData1 := &MsgQueueData{
 		MsgMetaData: MsgMetaData{
 			UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo)),
 			MsgMetaID: MsgMetaID{
-				ScraperID:   1,
-				MsgGroupID:  1,
+				ScraperID:   "1",
+				MsgGroupID:  strconv.Itoa(1),
 				ScraperType: commonModel.LocalScraperType,
 			},
 		},
@@ -188,8 +217,8 @@ func TestListenChan(t *testing.T) {
 		MsgMetaData: MsgMetaData{
 			UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo)),
 			MsgMetaID: MsgMetaID{
-				ScraperID:   3,
-				MsgGroupID:  2,
+				ScraperID:   "3",
+				MsgGroupID:  strconv.Itoa(2),
 				ScraperType: commonModel.APIScraperType,
 			},
 		},
@@ -295,15 +324,15 @@ func TestListenChan(t *testing.T) {
 // TestCommitAndGoDead TODO: test chan listen after eme.Commit() and eme.GoDead()
 func TestCommitAndGoDead(t *testing.T) {
 	queue := NewMessageQueue()
-	md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, 1, "test.jpg")
+	md, _ := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, "1", msgGroupID, "test.jpg")
 	scpStartNo1 := 3000
 	scpStartNo2 := 4000
 	msgData1 := &MsgQueueData{
 		MsgMetaData: MsgMetaData{
 			UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo1)),
 			MsgMetaID: MsgMetaID{
-				ScraperID:   1,
-				MsgGroupID:  2,
+				ScraperID:   "1",
+				MsgGroupID:  strconv.Itoa(2),
 				ScraperType: commonModel.LocalScraperType,
 			},
 		},
@@ -315,8 +344,8 @@ func TestCommitAndGoDead(t *testing.T) {
 		MsgMetaData: MsgMetaData{
 			UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo2)),
 			MsgMetaID: MsgMetaID{
-				ScraperID:   3,
-				MsgGroupID:  4,
+				ScraperID:   "3",
+				MsgGroupID:  strconv.Itoa(4),
 				ScraperType: commonModel.LocalScraperType,
 			},
 		},
@@ -332,7 +361,7 @@ func TestCommitAndGoDead(t *testing.T) {
 		t.Fatalf("Commit() failed: %v", err)
 	}
 	if ele, ok := queue.activateQueue.Load(msgData1.MsgMetaData); ok {
-		if ele.(msgQueueDataSet).Contains(msgData1) {
+		if _, _ok := ele.(*sync.Map).Load(msgData1.MsgMetaData); _ok {
 			t.Errorf("MsgQueueData was not removed from the activateQueue after Commit()")
 		} else {
 			t.Logf("MsgQueueData was removed from the activateQueue after Commit()")
@@ -349,7 +378,7 @@ func TestCommitAndGoDead(t *testing.T) {
 		t.Fatalf("GoDead() failed: %v", err)
 	}
 	if ele, ok := queue.activateQueue.Load(msgData2.MsgMetaData); ok {
-		if ele.(msgQueueDataSet).Contains(msgData2) {
+		if _, _ok := ele.(*sync.Map).Load(msgData2.MsgMetaData); _ok {
 			t.Errorf("MsgQueueData was not removed from the activateQueue after Commit()")
 		} else {
 			t.Logf("MsgQueueData was removed from the activateQueue after Commit()")
@@ -358,7 +387,7 @@ func TestCommitAndGoDead(t *testing.T) {
 		t.Errorf("MsgQueueData was not removed from the activateQueue after Commit()")
 	}
 	if ele, ok := queue.deadQueue.Load(msgData2.MsgMetaData); ok {
-		if ele.(msgQueueDataSet).Contains(msgData2) {
+		if _, _ok := ele.(*sync.Map).Load(msgData2.MsgMetaData); _ok {
 			t.Logf("MsgQueueData was added to the DeadQueue after GoDead()")
 		} else {
 			t.Errorf("MsgQueueData was not added to the DeadQueue after GoDead()")
@@ -384,8 +413,8 @@ func TestConcurrentAddAndRemove(t *testing.T) {
 					MsgMetaData: MsgMetaData{
 						UploadType: commonModel.UploadType(strconv.Itoa(id)),
 						MsgMetaID: MsgMetaID{
-							ScraperID:   j,
-							MsgGroupID:  j + 1,
+							ScraperID:   strconv.Itoa(j),
+							MsgGroupID:  strconv.Itoa(j + 1),
 							ScraperType: commonModel.LocalScraperType,
 						},
 					},
@@ -442,9 +471,6 @@ func TestConcurrentListening1(t *testing.T) {
 				t.Logf("Received correct UploadType %s", commonModel.UploadType(strconv.Itoa(scpStartNo)))
 				atomic.AddInt32(&all, 1)
 			}
-			if atomic.LoadInt32(&all) == 1 {
-				return
-			}
 		}
 	}()
 	for i := scpStartNo; i < numListeners+scpStartNo; i++ {
@@ -452,8 +478,8 @@ func TestConcurrentListening1(t *testing.T) {
 			MsgMetaData: MsgMetaData{
 				UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo)),
 				MsgMetaID: MsgMetaID{
-					ScraperID:   1,
-					MsgGroupID:  1,
+					ScraperID:   "1",
+					MsgGroupID:  strconv.Itoa(1),
 					ScraperType: commonModel.LocalScraperType,
 				},
 			},
@@ -508,15 +534,15 @@ func TestConcurrentListening2(t *testing.T) {
 			MsgMetaData: MsgMetaData{
 				UploadType: commonModel.PreUploadType,
 				MsgMetaID: MsgMetaID{
-					ScraperID:   rand.Intn(100) + 1,
-					MsgGroupID:  rand.Intn(100) + 1,
+					ScraperID:   strconv.Itoa(rand.Intn(100) + 1),
+					MsgGroupID:  strconv.Itoa(rand.Intn(100) + 1),
 					ScraperType: commonModel.ScraperType(strconv.Itoa(i)),
 				},
 			},
 			FileMetaData: &clientModel.AnyFileMetaDataModel{
 				PreUploadFileMetaDataModel: &clientModel.PreUploadFileMetaDataModel{
 					ScraperType: commonModel.ScraperType(strconv.Itoa(i)),
-					ScraperID:   rand.Intn(100) + 1,
+					ScraperID:   strconv.Itoa(rand.Intn(100) + 1),
 					ResourceUri: fmt.Sprintf("test%d.jpg", i),
 				},
 			},
@@ -535,7 +561,7 @@ func TestConcurrentListening2(t *testing.T) {
 	}
 }
 
-// TestConcurrentListening3 test different UploadType & different listenChan
+// TestConcurrentListening3 test different UploadType & one listenChan
 func TestConcurrentListening3(t *testing.T) {
 	queue := NewMessageQueue()
 	wg := sync.WaitGroup{}
@@ -543,6 +569,65 @@ func TestConcurrentListening3(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	scpStartNo := 8000
+	wg.Add(numListeners)
+	var all int32
+	go func() {
+		ch, err := queue.ListenUploadType(ctx, commonModel.UploadType(strconv.Itoa(scpStartNo)))
+		if err != nil {
+			t.Errorf("ListenUploadType() failed for UploadType %d: %v", scpStartNo, err)
+			return
+		}
+		for itm := range ch {
+			if itm.MsgMetaData.UploadType != commonModel.UploadType(strconv.Itoa(scpStartNo)) {
+				t.Errorf("Received wrong UploadType data: got %s, want %s",
+					itm.MsgMetaData.UploadType, commonModel.UploadType(strconv.Itoa(scpStartNo)))
+			} else {
+				t.Logf("Received correct UploadType %s", commonModel.UploadType(strconv.Itoa(scpStartNo)))
+				atomic.AddInt32(&all, 1)
+			}
+		}
+	}()
+	for i := scpStartNo; i < numListeners+scpStartNo; i++ {
+		msgData := &MsgQueueData{
+			MsgMetaData: MsgMetaData{
+				UploadType: commonModel.UploadType(strconv.Itoa(scpStartNo)),
+				MsgMetaID: MsgMetaID{
+					ScraperID:   strconv.Itoa(1),
+					MsgGroupID:  strconv.Itoa(1),
+					ScraperType: commonModel.LocalScraperType,
+				},
+			},
+			FileMetaData: &clientModel.AnyFileMetaDataModel{
+				PreUploadFileMetaDataModel: &clientModel.PreUploadFileMetaDataModel{
+					ScraperType: commonModel.LocalScraperType,
+					ScraperID:   "1",
+					ResourceUri: fmt.Sprintf("test%d.jpg", i),
+				},
+			},
+		}
+		if err := queue.AddElement(msgData); err != nil {
+			t.Fatalf("AddElement() failed: %v", err)
+		}
+		logrus.Debugf("Added element with ScraperType %d", i)
+		wg.Done()
+	}
+	wg.Wait()
+	if atomic.LoadInt32(&all) != 1 {
+		t.Errorf("Mismatch in the number of listeners and received data: listeners %d, received %d",
+			1, atomic.LoadInt32(&all))
+	} else {
+		t.Logf("All listeners received data!")
+	}
+}
+
+// TestConcurrentListening4 test different UploadType & different listenChan
+func TestConcurrentListening4(t *testing.T) {
+	queue := NewMessageQueue()
+	wg := sync.WaitGroup{}
+	numListeners := 200
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	scpStartNo := 9000
 	wg.Add(numListeners * 2)
 	var all int32
 	for i := scpStartNo; i < numListeners+scpStartNo; i++ {
@@ -572,8 +657,8 @@ func TestConcurrentListening3(t *testing.T) {
 			MsgMetaData: MsgMetaData{
 				UploadType: commonModel.UploadType(strconv.Itoa(i)),
 				MsgMetaID: MsgMetaID{
-					ScraperID:   rand.Intn(100) + 1,
-					MsgGroupID:  rand.Intn(100) + 1,
+					ScraperID:   strconv.Itoa(rand.Intn(100) + 1),
+					MsgGroupID:  strconv.Itoa(rand.Intn(100) + 1),
 					ScraperType: commonModel.ScraperType(strconv.Itoa(i)),
 				},
 			},
@@ -597,11 +682,11 @@ func TestCloseChanAndReopen(t *testing.T) {
 	queue := NewMessageQueue()
 	numListeners := 200
 	ctx, cancel := context.WithCancel(context.Background())
-	scpStartNo := 9000
+	scpStartNo := 10000
 	var all int32
 	var wg sync.WaitGroup
-	var uploadType1 = commonModel.UploadType(strconv.Itoa(9001))
-	var uploadType2 = commonModel.UploadType(strconv.Itoa(9002))
+	var uploadType1 = commonModel.UploadType(strconv.Itoa(10001))
+	var uploadType2 = commonModel.UploadType(strconv.Itoa(10002))
 	wg.Add(1)
 	go func() {
 		ch, err := queue.ListenUploadType(ctx, uploadType1)
@@ -631,15 +716,15 @@ func TestCloseChanAndReopen(t *testing.T) {
 			MsgMetaData: MsgMetaData{
 				UploadType: uploadType1,
 				MsgMetaID: MsgMetaID{
-					ScraperID:   rand.Intn(100) + 1,
-					MsgGroupID:  rand.Intn(100) + 1,
+					ScraperID:   strconv.Itoa(rand.Intn(100) + 1),
+					MsgGroupID:  strconv.Itoa(rand.Intn(100) + 1),
 					ScraperType: commonModel.ScraperType(strconv.Itoa(i)),
 				},
 			},
 			FileMetaData: &clientModel.AnyFileMetaDataModel{
 				PreUploadFileMetaDataModel: &clientModel.PreUploadFileMetaDataModel{
 					ScraperType: commonModel.ScraperType(strconv.Itoa(i)),
-					ScraperID:   rand.Intn(100) + 1,
+					ScraperID:   strconv.Itoa(rand.Intn(100) + 1),
 					ResourceUri: fmt.Sprintf("test%d.jpg", i),
 				},
 			},
@@ -689,15 +774,15 @@ func TestCloseChanAndReopen(t *testing.T) {
 			MsgMetaData: MsgMetaData{
 				UploadType: uploadType2,
 				MsgMetaID: MsgMetaID{
-					ScraperID:   rand.Intn(100) + 1,
-					MsgGroupID:  rand.Intn(100) + 1,
+					ScraperID:   strconv.Itoa(rand.Intn(100) + 1),
+					MsgGroupID:  strconv.Itoa(rand.Intn(100) + 1),
 					ScraperType: commonModel.ScraperType(strconv.Itoa(i)),
 				},
 			},
 			FileMetaData: &clientModel.AnyFileMetaDataModel{
 				PreUploadFileMetaDataModel: &clientModel.PreUploadFileMetaDataModel{
 					ScraperType: commonModel.ScraperType(strconv.Itoa(i)),
-					ScraperID:   rand.Intn(100) + 1,
+					ScraperID:   strconv.Itoa(rand.Intn(100) + 1),
 					ResourceUri: fmt.Sprintf("test%d.jpg", i),
 				},
 			},

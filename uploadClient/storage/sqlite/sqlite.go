@@ -113,7 +113,7 @@ func receiveDataToQueue[T clientModel.FileDataModel](data []*dbData[T]) {
 					MsgMetaID: msgQueue.MsgMetaID{
 						ScraperType: ori.ScraperType,
 						ScraperID:   ori.GetScraperID(),
-						MsgGroupID:  0, //TODO:
+						MsgGroupID:  ori.MsgGroupID,
 					},
 				},
 				FileMetaData: &clientModel.AnyFileMetaDataModel{
@@ -129,7 +129,7 @@ func receiveDataToQueue[T clientModel.FileDataModel](data []*dbData[T]) {
 					MsgMetaID: msgQueue.MsgMetaID{
 						ScraperType: ori.ScraperType,
 						ScraperID:   ori.GetScraperID(),
-						MsgGroupID:  0, //TODO:
+						MsgGroupID:  ori.MsgGroupID,
 					},
 				},
 				FileMetaData: &clientModel.AnyFileMetaDataModel{

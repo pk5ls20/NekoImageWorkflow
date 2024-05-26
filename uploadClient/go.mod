@@ -7,7 +7,6 @@ replace github.com/pk5ls20/NekoImageWorkflow/common => ../common
 require (
 	github.com/cloudwego/fastpb v0.0.4
 	github.com/cloudwego/kitex v0.9.1
-	github.com/deckarep/golang-set/v2 v2.6.0
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0

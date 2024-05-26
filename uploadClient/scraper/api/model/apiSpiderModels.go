@@ -18,8 +18,9 @@ type SpiderTask struct {
 // SpiderToDoTask is the task to do
 type SpiderToDoTask struct {
 	*SpiderTask
-	ScraperID int
-	FetchData *clientModel.PreUploadFileDataModel
+	ScraperID  string
+	MsgGroupID string
+	FetchData  *clientModel.PreUploadFileDataModel
 }
 
 // SpiderDoTask completes its init in func (s *APISpider) Init and returns after WaitDone()
@@ -27,7 +28,8 @@ type SpiderDoTask struct {
 	*SpiderTask
 	TotalRetries int
 	Success      bool
-	ScraperID    int
+	ScraperID    string
+	MsgGroupID   string
 	FetchData    *clientModel.UploadFileDataModel
 }
 

@@ -17,12 +17,12 @@ type LocalScraper struct {
 }
 
 func (c *LocalScraper) OnStart() error {
-	logrus.Debugf("%d-%s Onstart Start!", c.ScraperID, c.GetType())
+	logrus.Debugf("%s-%s Onstart Start!", c.ScraperID, c.GetType())
 	return nil
 }
 
 func (c *LocalScraper) PrepareData() error {
-	logrus.Debugf("%d-%s Start to fetch data from local", c.ScraperID, c.GetType())
+	logrus.Debugf("%s-%s Start to fetch data from local", c.ScraperID, c.GetType())
 	err := localScraperUtils.NewWatcher(c.ScraperID, c.InsConfig.WatchFolders)
 	if err != nil {
 		return commonLog.ErrorWrap(err)
@@ -31,7 +31,7 @@ func (c *LocalScraper) PrepareData() error {
 }
 
 func (c *LocalScraper) ProcessData() error {
-	logrus.Debugf("%d-%s Start to process data from local", c.ScraperID, c.GetType())
+	logrus.Debugf("%s-%s Start to process data from local", c.ScraperID, c.GetType())
 	// actually do nothing, just transform PreUploadFileDataModel to UploadFileDataModel
 	queue := msgQueue.NewMessageQueue()
 	for itm := range c.ScraperChanMap[c.ScraperID] {
@@ -42,7 +42,7 @@ func (c *LocalScraper) ProcessData() error {
 				MsgMetaID: msgQueue.MsgMetaID{
 					ScraperType: commonModel.LocalScraperType,
 					ScraperID:   c.ScraperID,
-					MsgGroupID:  0, //TODO:
+					MsgGroupID:  itm.MsgGroupID,
 				},
 			},
 			FileMetaData: &clientModel.AnyFileMetaDataModel{
@@ -57,7 +57,7 @@ func (c *LocalScraper) ProcessData() error {
 }
 
 func (c *LocalScraper) OnStop() error {
-	logrus.Debugf("%d-%s Onstop Start!", c.ScraperID, c.GetType())
+	logrus.Debugf("%s-%s Onstop Start!", c.ScraperID, c.GetType())
 	return nil
 }
 

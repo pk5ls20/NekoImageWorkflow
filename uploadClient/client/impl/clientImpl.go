@@ -65,7 +65,7 @@ func (ci *Client) HandleFilePreUpload(ctx context.Context, cli kitexUploadServic
 	}
 	// TODO: make it really work
 	// TODO: add commit and goDead
-	// TODO: add finishupload() etc to fileModel entry
+	// TODO: add finishUpload() etc to fileModel entry
 	select {
 	case <-ctx.Done():
 		return nil

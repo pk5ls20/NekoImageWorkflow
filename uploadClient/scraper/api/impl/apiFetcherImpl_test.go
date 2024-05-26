@@ -57,7 +57,7 @@ var routeMap = func(prefix string) map[string]string {
 }
 
 // doFetch TODO: check the fetched contents
-func doFetch(t *testing.T, fetcher *APIFetcher, scraperID int, cf []*config.APIScraperSourceConfig) error {
+func doFetch(t *testing.T, fetcher *APIFetcher, scraperID string, cf []*config.APIScraperSourceConfig) error {
 	var err error
 	tasks, err := fetcher.FetchList(cf)
 	if err != nil {
@@ -72,7 +72,7 @@ func doFetch(t *testing.T, fetcher *APIFetcher, scraperID int, cf []*config.APIS
 	// check scraper id
 	for _, content := range contents {
 		if content.ScraperID != scraperID {
-			t.Errorf("scraper id not match: %d, %d", content.ScraperID, scraperID)
+			t.Errorf("scraper id not match: %s, %s", content.ScraperID, scraperID)
 		}
 	}
 	logrus.Info("scraperID #", scraperID, " Contents: ", contents)
@@ -139,18 +139,18 @@ func TestAPIFetcherImpl_FetchList(t *testing.T) {
 	})
 	// init fetcher
 	fetcher := &APIFetcher{}
-	if err := doFetch(t, fetcher, 0, cf); err == nil {
+	if err := doFetch(t, fetcher, "0", cf); err == nil {
 		t.Fatalf("expected error, got nil")
 	}
 	var wg sync.WaitGroup
 	var scraperLen = 100
-	var scraperIDList = make([]int, scraperLen)
+	var scraperIDList = make([]string, scraperLen)
 	for i := 0; i < scraperLen; i++ {
-		scraperIDList[i] = i
+		scraperIDList[i] = fmt.Sprintf("%d", i)
 	}
 	wg.Add(len(scraperIDList))
 	for _, scpID := range scraperIDList {
-		go func(id int) {
+		go func(id string) {
 			defer wg.Done()
 			ft := &APIFetcher{}
 			if err := ft.Init(id); err != nil {

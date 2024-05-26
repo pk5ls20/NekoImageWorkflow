@@ -20,7 +20,7 @@ type Scraper interface {
 
 type BaseScraper struct {
 	Scraper
-	ScraperID      int
+	ScraperID      string
 	InsConfig      any // need to be implemented
 	Enable         bool
 	MsgQueue       *msgQueue.MessageQueue

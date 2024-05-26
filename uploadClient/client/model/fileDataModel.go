@@ -20,7 +20,7 @@ type FileDataModel interface {
 	// calculateUUID is a function that calculates the UUID of the ResourceUri / file
 	// only call in the constructor
 	calculateUUID() error
-	GetScraperID() int
+	GetScraperID() string
 	// PrepareUpload is a function that prepares the data for upload, wait to implement
 	// TODO: maybe, here can transform the FileDataModel itself to model which adapt to kitexClient proto
 	PrepareUpload() error
@@ -30,7 +30,8 @@ type FileDataModel interface {
 
 type PreUploadFileMetaDataModel struct {
 	ScraperType  commonModel.ScraperType
-	ScraperID    int
+	ScraperID    string
+	MsgGroupID   string
 	ResourceUUID uuid.UUID
 	ResourceUri  string
 }
@@ -45,7 +46,8 @@ type PreUploadFileDataModel struct {
 
 type UploadFileMetaDataModel struct {
 	ScraperType commonModel.ScraperType
-	ScraperID   int
+	ScraperID   string
+	MsgGroupID  string
 	FileUUID    uuid.UUID
 	FilePath    string
 	IsTempFile  bool
@@ -70,7 +72,7 @@ func (s *PreUploadFileDataModel) calculateUUID() error {
 	return nil
 }
 
-func (s *PreUploadFileDataModel) GetScraperID() int {
+func (s *PreUploadFileDataModel) GetScraperID() string {
 	return s.ScraperID
 }
 
@@ -83,7 +85,7 @@ func (s *UploadFileDataModel) calculateUUID() error {
 	return nil
 }
 
-func (s *UploadFileDataModel) GetScraperID() int {
+func (s *UploadFileDataModel) GetScraperID() string {
 	return s.ScraperID
 }
 
@@ -97,11 +99,12 @@ func (s *UploadFileDataModel) FinishUpload() error {
 	return nil
 }
 
-func NewPreUploadFileData(scType commonModel.ScraperType, scID int, uri string) (*PreUploadFileDataModel, error) {
+func NewPreUploadFileData(scType commonModel.ScraperType, scID string, MsgGroupID string, uri string) (*PreUploadFileDataModel, error) {
 	m := &PreUploadFileDataModel{
 		PreUploadFileMetaDataModel: PreUploadFileMetaDataModel{
 			ScraperType: scType,
 			ScraperID:   scID,
+			MsgGroupID:  MsgGroupID,
 			ResourceUri: uri,
 		},
 	}
@@ -122,7 +125,7 @@ func NewUploadFileData(model *PreUploadFileDataModel) *UploadFileDataModel {
 	return m
 }
 
-func NewUploadTempFileData(scType commonModel.ScraperType, scID int, fileContent []byte) (*UploadFileDataModel, error) {
+func NewUploadTempFileData(scType commonModel.ScraperType, scID string, MsgGroupID string, fileContent []byte) (*UploadFileDataModel, error) {
 	t := tmpStorage.NewTmpFile()
 	filePath, fileUUID, err := t.Create(fileContent, ".tmp")
 	if err != nil {
@@ -132,6 +135,7 @@ func NewUploadTempFileData(scType commonModel.ScraperType, scID int, fileContent
 		UploadFileMetaDataModel: UploadFileMetaDataModel{
 			ScraperType: scType,
 			ScraperID:   scID,
+			MsgGroupID:  MsgGroupID,
 			FileUUID:    fileUUID,
 			FilePath:    filePath,
 			IsTempFile:  true,

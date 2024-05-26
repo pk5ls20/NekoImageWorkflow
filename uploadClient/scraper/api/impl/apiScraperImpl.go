@@ -22,7 +22,7 @@ type APIScraper struct {
 }
 
 func (c *APIScraper) OnStart() error {
-	logrus.Debugf("%d-%s Onstart Start!", c.ScraperID, c.GetType())
+	logrus.Debugf("%s-%s Onstart Start!", c.ScraperID, c.GetType())
 	if !c.Enable {
 		logrus.Warn("APIScraper is not enabled")
 		return nil
@@ -36,7 +36,7 @@ func (c *APIScraper) OnStart() error {
 }
 
 func (c *APIScraper) PrepareData() error {
-	logrus.Debugf("%d-%s Start to fetch data from API", c.ScraperID, c.GetType())
+	logrus.Debugf("%s-%s Start to fetch data from API", c.ScraperID, c.GetType())
 	if !c.Enable {
 		logrus.Warn("APIScraper is not enabled")
 		return nil
@@ -62,7 +62,7 @@ func (c *APIScraper) PrepareData() error {
 				MsgMetaID: msgQueue.MsgMetaID{
 					ScraperID:   c.ScraperID,
 					ScraperType: c.GetType(),
-					MsgGroupID:  0, //TODO:
+					MsgGroupID:  task.MsgGroupID,
 				},
 			},
 			FileMetaData: &clientModel.AnyFileMetaDataModel{
@@ -77,7 +77,7 @@ func (c *APIScraper) PrepareData() error {
 }
 
 func (c *APIScraper) ProcessData() error {
-	logrus.Debugf("%d-%s Start to process data from API", c.ScraperID, c.GetType())
+	logrus.Debugf("%s-%s Start to process data from API", c.ScraperID, c.GetType())
 	// TODO: At present, every task will use an independent Fetcher, which is NOT elegant and efficient
 	tasks := make([]*apiModel.SpiderToDoTask, 0, len(c.ScraperChanMap[c.ScraperID]))
 	for itm := range c.ScraperChanMap[c.ScraperID] {
@@ -102,7 +102,7 @@ func (c *APIScraper) ProcessData() error {
 					MsgMetaID: msgQueue.MsgMetaID{
 						ScraperID:   c.ScraperID,
 						ScraperType: c.GetType(),
-						MsgGroupID:  0, //TODO:
+						MsgGroupID:  task.MsgGroupID,
 					},
 				},
 				FileMetaData: &clientModel.AnyFileMetaDataModel{
@@ -120,7 +120,7 @@ func (c *APIScraper) ProcessData() error {
 }
 
 func (c *APIScraper) OnStop() error {
-	logrus.Debugf("%d-%s Onstop Start!", c.ScraperID, c.GetType())
+	logrus.Debugf("%s-%s Onstop Start!", c.ScraperID, c.GetType())
 	return nil
 }
 

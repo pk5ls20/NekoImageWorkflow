@@ -8,9 +8,11 @@ import (
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	"github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/msgQueue"
 	"github.com/sirupsen/logrus"
+	"strconv"
+	"time"
 )
 
-func NewWatcher(scID int, watchFolders []string) error {
+func NewWatcher(scID string, watchFolders []string) error {
 	watcher, watcherErr := fsnotify.NewWatcher()
 	if watcherErr != nil {
 		return commonLog.ErrorWrap(watcherErr)
@@ -22,6 +24,8 @@ func NewWatcher(scID int, watchFolders []string) error {
 	}(watcher)
 	go func() {
 		queue := msgQueue.NewMessageQueue()
+		now := time.Now()
+		msgGroupID := strconv.FormatInt(now.UnixMilli(), 10)
 		for {
 			select {
 			case event, ok := <-watcher.Events:
@@ -31,7 +35,12 @@ func NewWatcher(scID int, watchFolders []string) error {
 				logrus.Debug("event:", event)
 				if event.Has(fsnotify.Create) {
 					logrus.Debug("create file:", event.Name)
-					d, err := clientModel.NewPreUploadFileData(commonModel.LocalScraperType, scID, event.Name)
+					d, err := clientModel.NewPreUploadFileData(
+						commonModel.LocalScraperType,
+						scID,
+						msgGroupID,
+						event.Name,
+					)
 					if err != nil {
 						logrus.Errorf("Failed to create ScraperPreUploadFileData: %v", err)
 						continue
@@ -42,7 +51,7 @@ func NewWatcher(scID int, watchFolders []string) error {
 							MsgMetaID: msgQueue.MsgMetaID{
 								ScraperType: commonModel.LocalScraperType,
 								ScraperID:   scID,
-								MsgGroupID:  0, //TODO:
+								MsgGroupID:  msgGroupID,
 							},
 						},
 						FileMetaData: &clientModel.AnyFileMetaDataModel{

@@ -2,13 +2,10 @@ package msgQueue
 
 import (
 	"context"
-	mapset "github.com/deckarep/golang-set/v2"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	"sync"
 )
-
-type msgQueueDataSet = mapset.Set[*MsgQueueData]
 
 type msgQueueType int
 
@@ -37,8 +34,8 @@ type MsgMetaData struct {
 
 type MsgMetaID struct {
 	ScraperType commonModel.ScraperType
-	ScraperID   int
-	MsgGroupID  int
+	ScraperID   string
+	MsgGroupID  string
 }
 
 // MsgQueueData represents a message in the msgQueue

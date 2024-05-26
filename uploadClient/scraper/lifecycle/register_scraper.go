@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"fmt"
 	"github.com/mitchellh/mapstructure"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
@@ -15,7 +16,8 @@ import (
 func RegisterScraper(ScraperList configModel.ScraperList) []scraperModel.Scraper {
 	queue := msgQueue.NewMessageQueue()
 	ins := make([]scraperModel.Scraper, 0)
-	id := 0
+	localID := 0
+	apiID := 0
 	chanMap := make(scraperModel.ScraperChanMap)
 	for scraperType, instances := range ScraperList {
 		switch scraperType {
@@ -26,6 +28,7 @@ func RegisterScraper(ScraperList configModel.ScraperList) []scraperModel.Scraper
 					logrus.Error("Error decoding LocalScraperConfig: ", err)
 					continue
 				}
+				id := fmt.Sprintf("%d-local", localID)
 				chanMap[id] = make(chan *clientModel.PreUploadFileDataModel)
 				ins = append(ins, &localScraper.LocalScraper{
 					InsConfig: &config,
@@ -36,7 +39,7 @@ func RegisterScraper(ScraperList configModel.ScraperList) []scraperModel.Scraper
 						ScraperChanMap: chanMap,
 					},
 				})
-				id += 1
+				localID += 1
 			}
 		case commonModel.APIScraperType:
 			for _, instance := range instances {
@@ -45,6 +48,7 @@ func RegisterScraper(ScraperList configModel.ScraperList) []scraperModel.Scraper
 					logrus.Error("Error decoding APIScraperConfig: ", err)
 					continue
 				}
+				id := fmt.Sprintf("%d-api", apiID)
 				chanMap[id] = make(chan *clientModel.PreUploadFileDataModel)
 				ins = append(ins, &apiScraper.APIScraper{
 					InsConfig: &config,
@@ -55,7 +59,7 @@ func RegisterScraper(ScraperList configModel.ScraperList) []scraperModel.Scraper
 						ScraperChanMap: chanMap,
 					},
 				})
-				id += 1
+				apiID += 1
 			}
 		}
 	}
