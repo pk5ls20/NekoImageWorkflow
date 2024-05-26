@@ -56,12 +56,15 @@ func TestBasicIDLock(t *testing.T) {
 	// done chan not received, which means block, expected
 	case <-time.After(1 * time.Second):
 	}
-	// 5. unlock id x2
+	// 5. unlock id x3
 	if err := lock.Unlock(id); err != nil {
 		t.Errorf("Unlock failed: %s", err)
 	}
 	if err := lock.Unlock(id); err != nil {
 		t.Errorf("Unlock failed: %s", err)
+	}
+	if err := lock.Unlock(id); err == nil {
+		t.Errorf("Except unlock failed: %s", err)
 	}
 	// B. Test unlock non-existent id
 	if err := lock.Unlock("non-existent-id"); err == nil {

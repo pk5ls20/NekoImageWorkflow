@@ -36,9 +36,8 @@ func (l *IDLock) Lock(id string) {
 	e := entry.(*lockEntry)
 	if !loaded {
 		logrus.Debugf("Making new chan for id %s", id)
-		e.ch <- struct{}{}
 	}
-	<-e.ch
+	e.ch <- struct{}{}
 	logrus.Debugf("Locked id: %s", id)
 }
 
@@ -46,11 +45,11 @@ func (l *IDLock) Unlock(id string) error {
 	if val, ok := l.lockMap.Load(id); ok {
 		e := val.(*lockEntry)
 		select {
-		case e.ch <- struct{}{}:
+		case <-e.ch:
 			logrus.Debug("Unlocked id: ", id)
 			return nil
 		default:
-			return fmt.Errorf("id %s channel is full", id)
+			return fmt.Errorf("id %s channel is already empty", id)
 		}
 	}
 	return fmt.Errorf("no lock found for id %s", id)
