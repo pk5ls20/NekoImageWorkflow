@@ -1,6 +1,6 @@
 syntax = "proto3";
 package protoFile;
-option go_package = "protoFile";
+option go_package = "proto/clientTransform";
 
 enum ClientType {
   LOCAL = 0;
@@ -84,6 +84,3 @@ service FileUploadService {
   rpc HandleFilePreUpload (FilePreRequest) returns (FilePreResponse) {}
   rpc HandleFilePostUpload (FilePostRequest) returns (FilePostResponse) {}
 }
-
-// cd uploadClient
-// kitex -type protobuf -module github.com/pk5ls20/NekoImageWorkflow/uploadClient -I ../protoFile ../protoFile/clientTransform.proto

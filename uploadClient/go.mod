@@ -2,20 +2,22 @@ module github.com/pk5ls20/NekoImageWorkflow/uploadClient
 
 go 1.21.1
 
-replace github.com/pk5ls20/NekoImageWorkflow/common => ../common
+replace (
+	github.com/pk5ls20/NekoImageWorkflow/common => ../common
+	github.com/pk5ls20/NekoImageWorkflow/kitex_gen => ../kitex_gen
+)
 
 require (
-	github.com/cloudwego/fastpb v0.0.4
 	github.com/cloudwego/kitex v0.9.1
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/pk5ls20/NekoImageWorkflow/common v0.0.0
+	github.com/pk5ls20/NekoImageWorkflow/kitex_gen v0.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/robertkrimen/otto v0.4.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2
-	google.golang.org/protobuf v1.34.0
 	gorm.io/driver/sqlite v1.5.5
 	gorm.io/gorm v1.25.10
 )
@@ -29,6 +31,7 @@ require (
 	github.com/choleraehyq/pid v0.0.18 // indirect
 	github.com/cloudwego/configmanager v0.2.0 // indirect
 	github.com/cloudwego/dynamicgo v0.2.0 // indirect
+	github.com/cloudwego/fastpb v0.0.4 // indirect
 	github.com/cloudwego/frugal v0.1.14 // indirect
 	github.com/cloudwego/localsession v0.0.2 // indirect
 	github.com/cloudwego/netpoll v0.6.0 // indirect
@@ -77,6 +80,7 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto v0.0.0-20231106174013-bbf56f31fb17 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231120223509-83a465c0220f // indirect
+	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

@@ -6,8 +6,8 @@ import (
 	kitexClient "github.com/cloudwego/kitex/client"
 	kitexTransport "github.com/cloudwego/kitex/transport"
 	_ "github.com/pk5ls20/NekoImageWorkflow/common/log"
+	kitexUploadService "github.com/pk5ls20/NekoImageWorkflow/kitex_gen/proto/clientTransform/fileuploadservice"
 	clientImpl "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/impl"
-	kitexUploadService "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile/fileuploadservice"
 	storageSqlite "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/sqlite"
 	"github.com/sirupsen/logrus"
 	"os"
@@ -68,16 +68,16 @@ func main() {
 		for {
 			if err := client.HandleFilePreUpload(ctx, kitexClientImpl); err != nil {
 				logrus.Error("PreUpload error:", err)
+				time.Sleep(time.Duration(int64(client.ClientInfo.PostUploadPeriod*1000)) * time.Millisecond)
 			}
-			time.Sleep(time.Duration(int64(client.ClientInfo.PostUploadPeriod*1000)) * time.Millisecond)
 		}
 	}()
 	go func() {
 		for {
 			if err := client.HandleFilePostUpload(ctx, kitexClientImpl); err != nil {
 				logrus.Error("PostUpload error:", err)
+				time.Sleep(time.Duration(int64(client.ClientInfo.PostUploadPeriod*1000)) * time.Millisecond)
 			}
-			time.Sleep(time.Duration(int64(client.ClientInfo.PostUploadPeriod*1000)) * time.Millisecond)
 		}
 	}()
 	wg.Wait()

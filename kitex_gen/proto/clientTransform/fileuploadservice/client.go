@@ -6,13 +6,13 @@ import (
 	"context"
 	client "github.com/cloudwego/kitex/client"
 	callopt "github.com/cloudwego/kitex/client/callopt"
-	protoFile "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile"
+	clientTransform "github.com/pk5ls20/NekoImageWorkflow/kitex_gen/proto/clientTransform"
 )
 
 // Client is designed to provide IDL-compatible methods with call-option parameter for kitex framework.
 type Client interface {
-	HandleFilePreUpload(ctx context.Context, Req *protoFile.FilePreRequest, callOptions ...callopt.Option) (r *protoFile.FilePreResponse, err error)
-	HandleFilePostUpload(ctx context.Context, Req *protoFile.FilePostRequest, callOptions ...callopt.Option) (r *protoFile.FilePostResponse, err error)
+	HandleFilePreUpload(ctx context.Context, Req *clientTransform.FilePreRequest, callOptions ...callopt.Option) (r *clientTransform.FilePreResponse, err error)
+	HandleFilePostUpload(ctx context.Context, Req *clientTransform.FilePostRequest, callOptions ...callopt.Option) (r *clientTransform.FilePostResponse, err error)
 }
 
 // NewClient creates a client for the service defined in IDL.
@@ -44,12 +44,12 @@ type kFileUploadServiceClient struct {
 	*kClient
 }
 
-func (p *kFileUploadServiceClient) HandleFilePreUpload(ctx context.Context, Req *protoFile.FilePreRequest, callOptions ...callopt.Option) (r *protoFile.FilePreResponse, err error) {
+func (p *kFileUploadServiceClient) HandleFilePreUpload(ctx context.Context, Req *clientTransform.FilePreRequest, callOptions ...callopt.Option) (r *clientTransform.FilePreResponse, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.HandleFilePreUpload(ctx, Req)
 }
 
-func (p *kFileUploadServiceClient) HandleFilePostUpload(ctx context.Context, Req *protoFile.FilePostRequest, callOptions ...callopt.Option) (r *protoFile.FilePostResponse, err error) {
+func (p *kFileUploadServiceClient) HandleFilePostUpload(ctx context.Context, Req *clientTransform.FilePostRequest, callOptions ...callopt.Option) (r *clientTransform.FilePostResponse, err error) {
 	ctx = client.NewCtxWithCallOptions(ctx, callOptions)
 	return p.kClient.HandleFilePostUpload(ctx, Req)
 }

@@ -4,11 +4,11 @@ package fileuploadservice
 
 import (
 	server "github.com/cloudwego/kitex/server"
-	protoFile "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile"
+	clientTransform "github.com/pk5ls20/NekoImageWorkflow/kitex_gen/proto/clientTransform"
 )
 
 // NewInvoker creates a server.Invoker with the given handler and options.
-func NewInvoker(handler protoFile.FileUploadService, opts ...server.Option) server.Invoker {
+func NewInvoker(handler clientTransform.FileUploadService, opts ...server.Option) server.Invoker {
 	var options []server.Option
 
 	options = append(options, opts...)

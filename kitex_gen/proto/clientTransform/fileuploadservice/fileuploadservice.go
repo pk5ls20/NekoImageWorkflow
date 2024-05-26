@@ -8,7 +8,7 @@ import (
 	client "github.com/cloudwego/kitex/client"
 	kitex "github.com/cloudwego/kitex/pkg/serviceinfo"
 	streaming "github.com/cloudwego/kitex/pkg/streaming"
-	protoFile "github.com/pk5ls20/NekoImageWorkflow/uploadClient/kitex_gen/protoFile"
+	clientTransform "github.com/pk5ls20/NekoImageWorkflow/kitex_gen/proto/clientTransform"
 	proto "google.golang.org/protobuf/proto"
 )
 
@@ -67,7 +67,7 @@ func NewServiceInfoForStreamClient() *kitex.ServiceInfo {
 
 func newServiceInfo(hasStreaming bool, keepStreamingMethods bool, keepNonStreamingMethods bool) *kitex.ServiceInfo {
 	serviceName := "FileUploadService"
-	handlerType := (*protoFile.FileUploadService)(nil)
+	handlerType := (*clientTransform.FileUploadService)(nil)
 	methods := map[string]kitex.MethodInfo{}
 	for name, m := range serviceMethods {
 		if m.IsStreaming() && !keepStreamingMethods {
@@ -99,17 +99,17 @@ func handleFilePreUploadHandler(ctx context.Context, handler interface{}, arg, r
 	switch s := arg.(type) {
 	case *streaming.Args:
 		st := s.Stream
-		req := new(protoFile.FilePreRequest)
+		req := new(clientTransform.FilePreRequest)
 		if err := st.RecvMsg(req); err != nil {
 			return err
 		}
-		resp, err := handler.(protoFile.FileUploadService).HandleFilePreUpload(ctx, req)
+		resp, err := handler.(clientTransform.FileUploadService).HandleFilePreUpload(ctx, req)
 		if err != nil {
 			return err
 		}
 		return st.SendMsg(resp)
 	case *HandleFilePreUploadArgs:
-		success, err := handler.(protoFile.FileUploadService).HandleFilePreUpload(ctx, s.Req)
+		success, err := handler.(clientTransform.FileUploadService).HandleFilePreUpload(ctx, s.Req)
 		if err != nil {
 			return err
 		}
@@ -129,12 +129,12 @@ func newHandleFilePreUploadResult() interface{} {
 }
 
 type HandleFilePreUploadArgs struct {
-	Req *protoFile.FilePreRequest
+	Req *clientTransform.FilePreRequest
 }
 
 func (p *HandleFilePreUploadArgs) FastRead(buf []byte, _type int8, number int32) (n int, err error) {
 	if !p.IsSetReq() {
-		p.Req = new(protoFile.FilePreRequest)
+		p.Req = new(clientTransform.FilePreRequest)
 	}
 	return p.Req.FastRead(buf, _type, number)
 }
@@ -161,7 +161,7 @@ func (p *HandleFilePreUploadArgs) Marshal(out []byte) ([]byte, error) {
 }
 
 func (p *HandleFilePreUploadArgs) Unmarshal(in []byte) error {
-	msg := new(protoFile.FilePreRequest)
+	msg := new(clientTransform.FilePreRequest)
 	if err := proto.Unmarshal(in, msg); err != nil {
 		return err
 	}
@@ -169,9 +169,9 @@ func (p *HandleFilePreUploadArgs) Unmarshal(in []byte) error {
 	return nil
 }
 
-var HandleFilePreUploadArgs_Req_DEFAULT *protoFile.FilePreRequest
+var HandleFilePreUploadArgs_Req_DEFAULT *clientTransform.FilePreRequest
 
-func (p *HandleFilePreUploadArgs) GetReq() *protoFile.FilePreRequest {
+func (p *HandleFilePreUploadArgs) GetReq() *clientTransform.FilePreRequest {
 	if !p.IsSetReq() {
 		return HandleFilePreUploadArgs_Req_DEFAULT
 	}
@@ -187,14 +187,14 @@ func (p *HandleFilePreUploadArgs) GetFirstArgument() interface{} {
 }
 
 type HandleFilePreUploadResult struct {
-	Success *protoFile.FilePreResponse
+	Success *clientTransform.FilePreResponse
 }
 
-var HandleFilePreUploadResult_Success_DEFAULT *protoFile.FilePreResponse
+var HandleFilePreUploadResult_Success_DEFAULT *clientTransform.FilePreResponse
 
 func (p *HandleFilePreUploadResult) FastRead(buf []byte, _type int8, number int32) (n int, err error) {
 	if !p.IsSetSuccess() {
-		p.Success = new(protoFile.FilePreResponse)
+		p.Success = new(clientTransform.FilePreResponse)
 	}
 	return p.Success.FastRead(buf, _type, number)
 }
@@ -221,7 +221,7 @@ func (p *HandleFilePreUploadResult) Marshal(out []byte) ([]byte, error) {
 }
 
 func (p *HandleFilePreUploadResult) Unmarshal(in []byte) error {
-	msg := new(protoFile.FilePreResponse)
+	msg := new(clientTransform.FilePreResponse)
 	if err := proto.Unmarshal(in, msg); err != nil {
 		return err
 	}
@@ -229,7 +229,7 @@ func (p *HandleFilePreUploadResult) Unmarshal(in []byte) error {
 	return nil
 }
 
-func (p *HandleFilePreUploadResult) GetSuccess() *protoFile.FilePreResponse {
+func (p *HandleFilePreUploadResult) GetSuccess() *clientTransform.FilePreResponse {
 	if !p.IsSetSuccess() {
 		return HandleFilePreUploadResult_Success_DEFAULT
 	}
@@ -237,7 +237,7 @@ func (p *HandleFilePreUploadResult) GetSuccess() *protoFile.FilePreResponse {
 }
 
 func (p *HandleFilePreUploadResult) SetSuccess(x interface{}) {
-	p.Success = x.(*protoFile.FilePreResponse)
+	p.Success = x.(*clientTransform.FilePreResponse)
 }
 
 func (p *HandleFilePreUploadResult) IsSetSuccess() bool {
@@ -252,17 +252,17 @@ func handleFilePostUploadHandler(ctx context.Context, handler interface{}, arg, 
 	switch s := arg.(type) {
 	case *streaming.Args:
 		st := s.Stream
-		req := new(protoFile.FilePostRequest)
+		req := new(clientTransform.FilePostRequest)
 		if err := st.RecvMsg(req); err != nil {
 			return err
 		}
-		resp, err := handler.(protoFile.FileUploadService).HandleFilePostUpload(ctx, req)
+		resp, err := handler.(clientTransform.FileUploadService).HandleFilePostUpload(ctx, req)
 		if err != nil {
 			return err
 		}
 		return st.SendMsg(resp)
 	case *HandleFilePostUploadArgs:
-		success, err := handler.(protoFile.FileUploadService).HandleFilePostUpload(ctx, s.Req)
+		success, err := handler.(clientTransform.FileUploadService).HandleFilePostUpload(ctx, s.Req)
 		if err != nil {
 			return err
 		}
@@ -282,12 +282,12 @@ func newHandleFilePostUploadResult() interface{} {
 }
 
 type HandleFilePostUploadArgs struct {
-	Req *protoFile.FilePostRequest
+	Req *clientTransform.FilePostRequest
 }
 
 func (p *HandleFilePostUploadArgs) FastRead(buf []byte, _type int8, number int32) (n int, err error) {
 	if !p.IsSetReq() {
-		p.Req = new(protoFile.FilePostRequest)
+		p.Req = new(clientTransform.FilePostRequest)
 	}
 	return p.Req.FastRead(buf, _type, number)
 }
@@ -314,7 +314,7 @@ func (p *HandleFilePostUploadArgs) Marshal(out []byte) ([]byte, error) {
 }
 
 func (p *HandleFilePostUploadArgs) Unmarshal(in []byte) error {
-	msg := new(protoFile.FilePostRequest)
+	msg := new(clientTransform.FilePostRequest)
 	if err := proto.Unmarshal(in, msg); err != nil {
 		return err
 	}
@@ -322,9 +322,9 @@ func (p *HandleFilePostUploadArgs) Unmarshal(in []byte) error {
 	return nil
 }
 
-var HandleFilePostUploadArgs_Req_DEFAULT *protoFile.FilePostRequest
+var HandleFilePostUploadArgs_Req_DEFAULT *clientTransform.FilePostRequest
 
-func (p *HandleFilePostUploadArgs) GetReq() *protoFile.FilePostRequest {
+func (p *HandleFilePostUploadArgs) GetReq() *clientTransform.FilePostRequest {
 	if !p.IsSetReq() {
 		return HandleFilePostUploadArgs_Req_DEFAULT
 	}
@@ -340,14 +340,14 @@ func (p *HandleFilePostUploadArgs) GetFirstArgument() interface{} {
 }
 
 type HandleFilePostUploadResult struct {
-	Success *protoFile.FilePostResponse
+	Success *clientTransform.FilePostResponse
 }
 
-var HandleFilePostUploadResult_Success_DEFAULT *protoFile.FilePostResponse
+var HandleFilePostUploadResult_Success_DEFAULT *clientTransform.FilePostResponse
 
 func (p *HandleFilePostUploadResult) FastRead(buf []byte, _type int8, number int32) (n int, err error) {
 	if !p.IsSetSuccess() {
-		p.Success = new(protoFile.FilePostResponse)
+		p.Success = new(clientTransform.FilePostResponse)
 	}
 	return p.Success.FastRead(buf, _type, number)
 }
@@ -374,7 +374,7 @@ func (p *HandleFilePostUploadResult) Marshal(out []byte) ([]byte, error) {
 }
 
 func (p *HandleFilePostUploadResult) Unmarshal(in []byte) error {
-	msg := new(protoFile.FilePostResponse)
+	msg := new(clientTransform.FilePostResponse)
 	if err := proto.Unmarshal(in, msg); err != nil {
 		return err
 	}
@@ -382,7 +382,7 @@ func (p *HandleFilePostUploadResult) Unmarshal(in []byte) error {
 	return nil
 }
 
-func (p *HandleFilePostUploadResult) GetSuccess() *protoFile.FilePostResponse {
+func (p *HandleFilePostUploadResult) GetSuccess() *clientTransform.FilePostResponse {
 	if !p.IsSetSuccess() {
 		return HandleFilePostUploadResult_Success_DEFAULT
 	}
@@ -390,7 +390,7 @@ func (p *HandleFilePostUploadResult) GetSuccess() *protoFile.FilePostResponse {
 }
 
 func (p *HandleFilePostUploadResult) SetSuccess(x interface{}) {
-	p.Success = x.(*protoFile.FilePostResponse)
+	p.Success = x.(*clientTransform.FilePostResponse)
 }
 
 func (p *HandleFilePostUploadResult) IsSetSuccess() bool {
@@ -411,7 +411,7 @@ func newServiceClient(c client.Client) *kClient {
 	}
 }
 
-func (p *kClient) HandleFilePreUpload(ctx context.Context, Req *protoFile.FilePreRequest) (r *protoFile.FilePreResponse, err error) {
+func (p *kClient) HandleFilePreUpload(ctx context.Context, Req *clientTransform.FilePreRequest) (r *clientTransform.FilePreResponse, err error) {
 	var _args HandleFilePreUploadArgs
 	_args.Req = Req
 	var _result HandleFilePreUploadResult
@@ -421,7 +421,7 @@ func (p *kClient) HandleFilePreUpload(ctx context.Context, Req *protoFile.FilePr
 	return _result.GetSuccess(), nil
 }
 
-func (p *kClient) HandleFilePostUpload(ctx context.Context, Req *protoFile.FilePostRequest) (r *protoFile.FilePostResponse, err error) {
+func (p *kClient) HandleFilePostUpload(ctx context.Context, Req *clientTransform.FilePostRequest) (r *clientTransform.FilePostResponse, err error) {
 	var _args HandleFilePostUploadArgs
 	_args.Req = Req
 	var _result HandleFilePostUploadResult
