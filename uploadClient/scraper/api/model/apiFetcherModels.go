@@ -15,7 +15,7 @@ type FetcherTaskList struct {
 // Fetcher is the interface for fetching data from API, include parser
 type Fetcher interface {
 	// Init initialize the fetcher
-	Init(scID int) error
+	Init(scID string) error
 	FetchList(cf []*config.APIScraperSourceConfig) (task []*SpiderToDoTask, err error)
 	FetchContent(task []*SpiderToDoTask, ctx context.Context, cancel context.CancelFunc) ([]*SpiderDoTask, error)
 }
