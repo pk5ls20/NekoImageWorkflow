@@ -2,10 +2,12 @@ package impl
 
 import (
 	"context"
+	"github.com/google/uuid"
 	commonLog "github.com/pk5ls20/NekoImageWorkflow/common/log"
 	commonModel "github.com/pk5ls20/NekoImageWorkflow/common/model"
 	kitexUploadClient "github.com/pk5ls20/NekoImageWorkflow/kitex_gen/proto/clientTransform"
 	kitexUploadService "github.com/pk5ls20/NekoImageWorkflow/kitex_gen/proto/clientTransform/fileuploadservice"
+	clientModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/client/model"
 	scraperLifeCycle "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/lifecycle"
 	scraperModel "github.com/pk5ls20/NekoImageWorkflow/uploadClient/scraper/model"
 	storageConfig "github.com/pk5ls20/NekoImageWorkflow/uploadClient/storage/config"
@@ -18,7 +20,7 @@ type client interface {
 	// OnInit call after logger init, load client self config, init database, write database data to fileQueue
 	OnInit() error
 	// OnStart call after kitex's MustNewClient, aka after kitex client start and before kitex transport start
-	OnStart() error
+	OnStart(clientName string, clientUUID uuid.UUID) error
 	// HandleFilePreUpload upload preUploadData to kitex server
 	HandleFilePreUpload(ctx context.Context, cli kitexUploadService.Client) error
 	// HandleFilePostUpload upload uploadData to kitex server
@@ -30,10 +32,11 @@ type client interface {
 
 type Client struct {
 	client
-	ClientInfo     *storageConfig.ClientConfig
-	MsgQueue       *storageQueue.MessageQueue
-	Scrapers       []scraperModel.Scraper
-	ScraperChanMap scraperModel.ScraperChanMap
+	KitexClientInfo *kitexUploadClient.ClientInfo
+	ClientConfig    *storageConfig.ClientConfig
+	MsgQueue        *storageQueue.MessageQueue
+	Scrapers        []scraperModel.Scraper
+	ScraperChanMap  scraperModel.ScraperChanMap
 }
 
 // OnInit load client self config and before data, then init Scrapers
@@ -42,15 +45,18 @@ func (ci *Client) OnInit() error {
 	storageSqlite.InitSqlite()
 	logrus.Debug("Client OnInit start")
 	ci.MsgQueue = storageQueue.NewMessageQueue()
-	ci.ClientInfo = storageConfig.GetConfig()
+	ci.ClientConfig = storageConfig.GetConfig()
 	return nil
 }
 
-// OnStart currently do nothing
-func (ci *Client) OnStart() error {
-	// TODO: make it really work
+// OnStart currently init KitexClientInfo and Scrapers
+func (ci *Client) OnStart(clientName string, clientUUID uuid.UUID) error {
 	logrus.Debug("Client OnStart start")
-	ci.Scrapers = scraperLifeCycle.RegisterScraper(ci.ClientInfo.Scraper)
+	ci.KitexClientInfo = &kitexUploadClient.ClientInfo{
+		ClientUUID: clientUUID.String(),
+		ClientName: clientName,
+	}
+	ci.Scrapers = scraperLifeCycle.RegisterScraper(ci.ClientConfig.Scraper)
 	go scraperLifeCycle.StartScraper(ci.Scrapers)
 	return nil
 }
@@ -64,15 +70,31 @@ func (ci *Client) HandleFilePreUpload(ctx context.Context, cli kitexUploadServic
 		return commonLog.ErrorWrap(err)
 	}
 	// TODO: make it really work
-	// TODO: add commit and goDead
-	// TODO: add finishUpload() etc to fileModel entry
 	select {
 	case <-ctx.Done():
 		return nil
 	case msg := <-ch:
-		logrus.Debug("Client PostUpload msg: ", msg)
-		req := &kitexUploadClient.FilePreRequest{}
-		if _, err = cli.HandleFilePreUpload(ctx, req); err != nil {
+		logrus.Debug("Client PreUpload msg: ", msg)
+		m := clientModel.NewPreUploadFileDataFromMeta(msg.FileMetaData.PreUploadFileMetaDataModel)
+		mSlice := []*kitexUploadClient.PreUploadFileData{{
+			ScraperType:  kitexUploadClient.ScraperType(commonModel.PasteScraperTypeToInt(m.ScraperType)),
+			ResourceUUID: m.ResourceUUID.String(),
+			ResourceUri:  m.ResourceUri,
+		}}
+		req := &kitexUploadClient.FilePreRequest{
+			ClientInfo: ci.KitexClientInfo,
+			Data:       mSlice,
+		}
+		resp, _err := cli.HandleFilePreUpload(ctx, req)
+		if _err != nil {
+			return commonLog.ErrorWrap(err)
+		}
+		logrus.Debug("Client PreUpload resp: ", resp)
+		// TODO: handle HandleFilePreUpload response
+		if err = m.FinishUpload(); err != nil {
+			return commonLog.ErrorWrap(err)
+		}
+		if err = msg.Commit(); err != nil {
 			return commonLog.ErrorWrap(err)
 		}
 		return nil
@@ -81,6 +103,7 @@ func (ci *Client) HandleFilePreUpload(ctx context.Context, cli kitexUploadServic
 
 // HandleFilePostUpload report post upload data
 // TODO: Need to store filedata that failed to upload
+// TODO: make it really work
 func (ci *Client) HandleFilePostUpload(ctx context.Context, cli kitexUploadService.Client) error {
 	logrus.Debug("Client PostUpload start")
 	ch, err := ci.MsgQueue.ListenUploadType(ctx, commonModel.PostUploadType)
@@ -93,8 +116,30 @@ func (ci *Client) HandleFilePostUpload(ctx context.Context, cli kitexUploadServi
 		return nil
 	case msg := <-ch:
 		logrus.Debug("Client PostUpload msg: ", msg)
-		req := &kitexUploadClient.FilePostRequest{}
-		if _, err = cli.HandleFilePostUpload(ctx, req); err != nil {
+		m := clientModel.NewUploadFileDataFromMeta(msg.FileMetaData.UploadFileMetaDataModel)
+		fileData, _err := m.GetFileContent()
+		if _err != nil {
+			return commonLog.ErrorWrap(_err)
+		}
+		mSlice := []*kitexUploadClient.UploadFileData{{
+			ScraperType: kitexUploadClient.ScraperType(commonModel.PasteScraperTypeToInt(m.ScraperType)),
+			FileUUID:    m.FileUUID.String(),
+			FileContent: fileData,
+		}}
+		req := &kitexUploadClient.FilePostRequest{
+			ClientInfo: ci.KitexClientInfo,
+			Data:       mSlice,
+		}
+		resp, _err := cli.HandleFilePostUpload(ctx, req)
+		if _err != nil {
+			return commonLog.ErrorWrap(err)
+		}
+		// TODO: handle HandleFilePreUpload response
+		logrus.Debug("Client PostUpload resp: ", resp)
+		if err = m.FinishUpload(); err != nil {
+			return commonLog.ErrorWrap(err)
+		}
+		if err = msg.Commit(); err != nil {
 			return commonLog.ErrorWrap(err)
 		}
 		return nil

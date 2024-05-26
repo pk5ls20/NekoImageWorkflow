@@ -24,11 +24,6 @@ func (x *ClientInfo) FastRead(buf []byte, _type int8, number int32) (offset int,
 		if err != nil {
 			goto ReadFieldError
 		}
-	case 3:
-		offset, err = x.fastReadField3(buf, _type)
-		if err != nil {
-			goto ReadFieldError
-		}
 	default:
 		offset, err = fastpb.Skip(buf, _type, number)
 		if err != nil {
@@ -52,16 +47,6 @@ func (x *ClientInfo) fastReadField2(buf []byte, _type int8) (offset int, err err
 	return offset, err
 }
 
-func (x *ClientInfo) fastReadField3(buf []byte, _type int8) (offset int, err error) {
-	var v int32
-	v, offset, err = fastpb.ReadInt32(buf, _type)
-	if err != nil {
-		return offset, err
-	}
-	x.ClientType = ClientType(v)
-	return offset, nil
-}
-
 func (x *PreUploadFileData) FastRead(buf []byte, _type int8, number int32) (offset int, err error) {
 	switch number {
 	case 1:
@@ -71,6 +56,11 @@ func (x *PreUploadFileData) FastRead(buf []byte, _type int8, number int32) (offs
 		}
 	case 2:
 		offset, err = x.fastReadField2(buf, _type)
+		if err != nil {
+			goto ReadFieldError
+		}
+	case 3:
+		offset, err = x.fastReadField3(buf, _type)
 		if err != nil {
 			goto ReadFieldError
 		}
@@ -88,11 +78,21 @@ ReadFieldError:
 }
 
 func (x *PreUploadFileData) fastReadField1(buf []byte, _type int8) (offset int, err error) {
+	var v int32
+	v, offset, err = fastpb.ReadInt32(buf, _type)
+	if err != nil {
+		return offset, err
+	}
+	x.ScraperType = ScraperType(v)
+	return offset, nil
+}
+
+func (x *PreUploadFileData) fastReadField2(buf []byte, _type int8) (offset int, err error) {
 	x.ResourceUUID, offset, err = fastpb.ReadString(buf, _type)
 	return offset, err
 }
 
-func (x *PreUploadFileData) fastReadField2(buf []byte, _type int8) (offset int, err error) {
+func (x *PreUploadFileData) fastReadField3(buf []byte, _type int8) (offset int, err error) {
 	x.ResourceUri, offset, err = fastpb.ReadString(buf, _type)
 	return offset, err
 }
@@ -106,6 +106,11 @@ func (x *UploadFileData) FastRead(buf []byte, _type int8, number int32) (offset 
 		}
 	case 2:
 		offset, err = x.fastReadField2(buf, _type)
+		if err != nil {
+			goto ReadFieldError
+		}
+	case 3:
+		offset, err = x.fastReadField3(buf, _type)
 		if err != nil {
 			goto ReadFieldError
 		}
@@ -123,11 +128,21 @@ ReadFieldError:
 }
 
 func (x *UploadFileData) fastReadField1(buf []byte, _type int8) (offset int, err error) {
+	var v int32
+	v, offset, err = fastpb.ReadInt32(buf, _type)
+	if err != nil {
+		return offset, err
+	}
+	x.ScraperType = ScraperType(v)
+	return offset, nil
+}
+
+func (x *UploadFileData) fastReadField2(buf []byte, _type int8) (offset int, err error) {
 	x.FileUUID, offset, err = fastpb.ReadString(buf, _type)
 	return offset, err
 }
 
-func (x *UploadFileData) fastReadField2(buf []byte, _type int8) (offset int, err error) {
+func (x *UploadFileData) fastReadField3(buf []byte, _type int8) (offset int, err error) {
 	x.FileContent, offset, err = fastpb.ReadBytes(buf, _type)
 	return offset, err
 }
@@ -418,7 +433,6 @@ func (x *ClientInfo) FastWrite(buf []byte) (offset int) {
 	}
 	offset += x.fastWriteField1(buf[offset:])
 	offset += x.fastWriteField2(buf[offset:])
-	offset += x.fastWriteField3(buf[offset:])
 	return offset
 }
 
@@ -438,36 +452,37 @@ func (x *ClientInfo) fastWriteField2(buf []byte) (offset int) {
 	return offset
 }
 
-func (x *ClientInfo) fastWriteField3(buf []byte) (offset int) {
-	if x.ClientType == 0 {
-		return offset
-	}
-	offset += fastpb.WriteInt32(buf[offset:], 3, int32(x.GetClientType()))
-	return offset
-}
-
 func (x *PreUploadFileData) FastWrite(buf []byte) (offset int) {
 	if x == nil {
 		return offset
 	}
 	offset += x.fastWriteField1(buf[offset:])
 	offset += x.fastWriteField2(buf[offset:])
+	offset += x.fastWriteField3(buf[offset:])
 	return offset
 }
 
 func (x *PreUploadFileData) fastWriteField1(buf []byte) (offset int) {
-	if x.ResourceUUID == "" {
+	if x.ScraperType == 0 {
 		return offset
 	}
-	offset += fastpb.WriteString(buf[offset:], 1, x.GetResourceUUID())
+	offset += fastpb.WriteInt32(buf[offset:], 1, int32(x.GetScraperType()))
 	return offset
 }
 
 func (x *PreUploadFileData) fastWriteField2(buf []byte) (offset int) {
+	if x.ResourceUUID == "" {
+		return offset
+	}
+	offset += fastpb.WriteString(buf[offset:], 2, x.GetResourceUUID())
+	return offset
+}
+
+func (x *PreUploadFileData) fastWriteField3(buf []byte) (offset int) {
 	if x.ResourceUri == "" {
 		return offset
 	}
-	offset += fastpb.WriteString(buf[offset:], 2, x.GetResourceUri())
+	offset += fastpb.WriteString(buf[offset:], 3, x.GetResourceUri())
 	return offset
 }
 
@@ -477,22 +492,31 @@ func (x *UploadFileData) FastWrite(buf []byte) (offset int) {
 	}
 	offset += x.fastWriteField1(buf[offset:])
 	offset += x.fastWriteField2(buf[offset:])
+	offset += x.fastWriteField3(buf[offset:])
 	return offset
 }
 
 func (x *UploadFileData) fastWriteField1(buf []byte) (offset int) {
-	if x.FileUUID == "" {
+	if x.ScraperType == 0 {
 		return offset
 	}
-	offset += fastpb.WriteString(buf[offset:], 1, x.GetFileUUID())
+	offset += fastpb.WriteInt32(buf[offset:], 1, int32(x.GetScraperType()))
 	return offset
 }
 
 func (x *UploadFileData) fastWriteField2(buf []byte) (offset int) {
+	if x.FileUUID == "" {
+		return offset
+	}
+	offset += fastpb.WriteString(buf[offset:], 2, x.GetFileUUID())
+	return offset
+}
+
+func (x *UploadFileData) fastWriteField3(buf []byte) (offset int) {
 	if len(x.FileContent) == 0 {
 		return offset
 	}
-	offset += fastpb.WriteBytes(buf[offset:], 2, x.GetFileContent())
+	offset += fastpb.WriteBytes(buf[offset:], 3, x.GetFileContent())
 	return offset
 }
 
@@ -678,7 +702,6 @@ func (x *ClientInfo) Size() (n int) {
 	}
 	n += x.sizeField1()
 	n += x.sizeField2()
-	n += x.sizeField3()
 	return n
 }
 
@@ -698,36 +721,37 @@ func (x *ClientInfo) sizeField2() (n int) {
 	return n
 }
 
-func (x *ClientInfo) sizeField3() (n int) {
-	if x.ClientType == 0 {
-		return n
-	}
-	n += fastpb.SizeInt32(3, int32(x.GetClientType()))
-	return n
-}
-
 func (x *PreUploadFileData) Size() (n int) {
 	if x == nil {
 		return n
 	}
 	n += x.sizeField1()
 	n += x.sizeField2()
+	n += x.sizeField3()
 	return n
 }
 
 func (x *PreUploadFileData) sizeField1() (n int) {
-	if x.ResourceUUID == "" {
+	if x.ScraperType == 0 {
 		return n
 	}
-	n += fastpb.SizeString(1, x.GetResourceUUID())
+	n += fastpb.SizeInt32(1, int32(x.GetScraperType()))
 	return n
 }
 
 func (x *PreUploadFileData) sizeField2() (n int) {
+	if x.ResourceUUID == "" {
+		return n
+	}
+	n += fastpb.SizeString(2, x.GetResourceUUID())
+	return n
+}
+
+func (x *PreUploadFileData) sizeField3() (n int) {
 	if x.ResourceUri == "" {
 		return n
 	}
-	n += fastpb.SizeString(2, x.GetResourceUri())
+	n += fastpb.SizeString(3, x.GetResourceUri())
 	return n
 }
 
@@ -737,22 +761,31 @@ func (x *UploadFileData) Size() (n int) {
 	}
 	n += x.sizeField1()
 	n += x.sizeField2()
+	n += x.sizeField3()
 	return n
 }
 
 func (x *UploadFileData) sizeField1() (n int) {
-	if x.FileUUID == "" {
+	if x.ScraperType == 0 {
 		return n
 	}
-	n += fastpb.SizeString(1, x.GetFileUUID())
+	n += fastpb.SizeInt32(1, int32(x.GetScraperType()))
 	return n
 }
 
 func (x *UploadFileData) sizeField2() (n int) {
+	if x.FileUUID == "" {
+		return n
+	}
+	n += fastpb.SizeString(2, x.GetFileUUID())
+	return n
+}
+
+func (x *UploadFileData) sizeField3() (n int) {
 	if len(x.FileContent) == 0 {
 		return n
 	}
-	n += fastpb.SizeBytes(2, x.GetFileContent())
+	n += fastpb.SizeBytes(3, x.GetFileContent())
 	return n
 }
 
@@ -935,17 +968,18 @@ func (x *FilePostResponse) sizeField3() (n int) {
 var fieldIDToName_ClientInfo = map[int32]string{
 	1: "ClientUUID",
 	2: "ClientName",
-	3: "ClientType",
 }
 
 var fieldIDToName_PreUploadFileData = map[int32]string{
-	1: "ResourceUUID",
-	2: "ResourceUri",
+	1: "ScraperType",
+	2: "ResourceUUID",
+	3: "ResourceUri",
 }
 
 var fieldIDToName_UploadFileData = map[int32]string{
-	1: "FileUUID",
-	2: "FileContent",
+	1: "ScraperType",
+	2: "FileUUID",
+	3: "FileContent",
 }
 
 var fieldIDToName_FilePreRequest = map[int32]string{

@@ -43,15 +43,16 @@ func main() {
 		logrus.Fatal("OnInit error:", err)
 	}
 	// TODO: 2. load client uuid
-	uuid, _ := storageSqlite.LoadClientUUID()
-	logrus.Debug("Client uuid: ", uuid.String())
+	clientUUID, _ := storageSqlite.LoadClientUUID()
+	logrus.Debug("Client uuid: ", clientUUID.String())
 	// TODO: 3. init kitex client
+	clientName := fmt.Sprintf("uploadClient-%s", clientUUID.String())
 	kitexClientImpl := kitexUploadService.MustNewClient(
-		fmt.Sprintf("uploadClient-%s", uuid.String()),
+		clientName,
 		kitexClient.WithTransportProtocol(kitexTransport.GRPC),
 		kitexClient.WithHostPorts("127.0.0.1:8888"),
 	)
-	if err := client.OnStart(); err != nil {
+	if err := client.OnStart(clientName, clientUUID); err != nil {
 		logrus.Error("OnStart error:", err)
 	}
 	// TODO: debug after 30s
@@ -68,7 +69,7 @@ func main() {
 		for {
 			if err := client.HandleFilePreUpload(ctx, kitexClientImpl); err != nil {
 				logrus.Error("PreUpload error:", err)
-				time.Sleep(time.Duration(int64(client.ClientInfo.PostUploadPeriod*1000)) * time.Millisecond)
+				time.Sleep(time.Duration(int64(client.ClientConfig.PostUploadPeriod*1000)) * time.Millisecond)
 			}
 		}
 	}()
@@ -76,7 +77,7 @@ func main() {
 		for {
 			if err := client.HandleFilePostUpload(ctx, kitexClientImpl); err != nil {
 				logrus.Error("PostUpload error:", err)
-				time.Sleep(time.Duration(int64(client.ClientInfo.PostUploadPeriod*1000)) * time.Millisecond)
+				time.Sleep(time.Duration(int64(client.ClientConfig.PostUploadPeriod*1000)) * time.Millisecond)
 			}
 		}
 	}()

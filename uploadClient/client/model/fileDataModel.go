@@ -20,7 +20,8 @@ type FileDataModel interface {
 	// calculateUUID is a function that calculates the UUID of the ResourceUri / file
 	// only call in the constructor
 	calculateUUID() error
-	GetScraperID() string
+	// GetFileContent is a function that returns the file data
+	GetFileContent() ([]byte, error)
 	// PrepareUpload is a function that prepares the data for upload, wait to implement
 	// TODO: maybe, here can transform the FileDataModel itself to model which adapt to kitexClient proto
 	PrepareUpload() error
@@ -72,8 +73,12 @@ func (s *PreUploadFileDataModel) calculateUUID() error {
 	return nil
 }
 
-func (s *PreUploadFileDataModel) GetScraperID() string {
-	return s.ScraperID
+func (s *PreUploadFileDataModel) GetFileContent() ([]byte, error) {
+	return nil, nil
+}
+
+func (s *PreUploadFileDataModel) FinishUpload() error {
+	return nil
 }
 
 func (s *UploadFileDataModel) calculateUUID() error {
@@ -85,8 +90,12 @@ func (s *UploadFileDataModel) calculateUUID() error {
 	return nil
 }
 
-func (s *UploadFileDataModel) GetScraperID() string {
-	return s.ScraperID
+func (s *UploadFileDataModel) GetFileContent() ([]byte, error) {
+	fileContent, err := os.ReadFile(s.FilePath)
+	if err != nil {
+		return nil, commonLog.ErrorWrap(err)
+	}
+	return fileContent, nil
 }
 
 func (s *UploadFileDataModel) FinishUpload() error {

@@ -12,7 +12,7 @@ const (
 	APIScraperType   ScraperType = "apiscraper"
 )
 
-func ParseScraperType(s string) (ScraperType, error) {
+func ParseStringToScraperType(s string) (ScraperType, error) {
 	switch s {
 	case string(LocalScraperType):
 		return LocalScraperType, nil
@@ -20,5 +20,16 @@ func ParseScraperType(s string) (ScraperType, error) {
 		return APIScraperType, nil
 	default:
 		return "", log.ErrorWrap(errors.New("invalid scraperType"))
+	}
+}
+
+func PasteScraperTypeToInt(s ScraperType) int {
+	switch s {
+	case LocalScraperType:
+		return 0
+	case APIScraperType:
+		return 1
+	default:
+		panic("invalid scraperType")
 	}
 }

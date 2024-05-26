@@ -112,7 +112,7 @@ func receiveDataToQueue[T clientModel.FileDataModel](data []*dbData[T]) {
 					UploadType: commonModel.PreUploadType,
 					MsgMetaID: msgQueue.MsgMetaID{
 						ScraperType: ori.ScraperType,
-						ScraperID:   ori.GetScraperID(),
+						ScraperID:   ori.ScraperID,
 						MsgGroupID:  ori.MsgGroupID,
 					},
 				},
@@ -128,7 +128,7 @@ func receiveDataToQueue[T clientModel.FileDataModel](data []*dbData[T]) {
 					UploadType: commonModel.PostUploadType,
 					MsgMetaID: msgQueue.MsgMetaID{
 						ScraperType: ori.ScraperType,
-						ScraperID:   ori.GetScraperID(),
+						ScraperID:   ori.ScraperID,
 						MsgGroupID:  ori.MsgGroupID,
 					},
 				},

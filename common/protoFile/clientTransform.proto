@@ -2,7 +2,7 @@ syntax = "proto3";
 package protoFile;
 option go_package = "proto/clientTransform";
 
-enum ClientType {
+enum ScraperType {
   LOCAL = 0;
   API = 1;
 }
@@ -11,23 +11,24 @@ enum ClientType {
 message ClientInfo {
   string clientUUID = 1;
   string clientName = 2;
-  ClientType clientType = 3;
 }
 
 // PreUploadFileData
 // ResourceUUID Used to uniquely identify the resource
 // ResourceUri Path to the local ClientImpl for the resource
 message PreUploadFileData{
-  string resourceUUID = 1;
-  string resourceUri = 2;
+  ScraperType scraperType = 1;
+  string resourceUUID = 2;
+  string resourceUri = 3;
 }
 
 // UploadFileData
 // FileUUID Used to uniquely identify the uploaded file
 // FileContent Path to the local ClientImpl for the uploaded file
 message UploadFileData {
-  string fileUUID = 1;
-  bytes fileContent = 2;
+  ScraperType scraperType = 1;
+  string fileUUID = 2;
+  bytes fileContent = 3;
 }
 
 // FilePreRequest perform first, if the same uuid exists it is not uploaded
