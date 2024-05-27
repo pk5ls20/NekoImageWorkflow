@@ -11,10 +11,10 @@ type ConfigWrapper struct {
 type ScraperList map[commonModel.ScraperType][]Scraper
 
 type ClientConfig struct {
-	ClientRegisterAddress string      `mapstructure:"ClientRegisterAddress" json:"ClientRegisterAddress"`
-	ConsulAddress         string      `mapstructure:"ConsulAddress" json:"ConsulAddress"`
-	PostUploadPeriod      float64     `mapstructure:"PostUploadPeriod" json:"PostUploadPeriod"`
-	Scraper               ScraperList `mapstructure:"scraper" json:"scraper"`
+	KitexServerAddress   string      `mapstructure:"KitexServerAddress" json:"KitexServerAddress"`
+	UploadWaitSecond     float64     `mapstructure:"UploadWaitSecond" json:"UploadWaitSecond"`
+	UploadFailWaitSecond float64     `mapstructure:"UploadFailWaitSecond" json:"UploadFailWaitSecond"`
+	Scraper              ScraperList `mapstructure:"scraper" json:"scraper"`
 }
 
 type Scraper interface {

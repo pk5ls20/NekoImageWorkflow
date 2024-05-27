@@ -47,9 +47,9 @@ func CreateConfig() {
 	viper.AddConfigPath(configPath)
 	viper.SetConfigType("json")
 	viper.Set("ClientConfig", ClientConfig{
-		ClientRegisterAddress: "https://example.com/register",
-		ConsulAddress:         "https://example-consul.com",
-		PostUploadPeriod:      0.5,
+		KitexServerAddress:   "http://127.0.0.1:8888",
+		UploadWaitSecond:     0.1,
+		UploadFailWaitSecond: 0.5,
 		Scraper: map[commonModel.ScraperType][]Scraper{
 			commonModel.LocalScraperType: {
 				LocalScraperConfig{

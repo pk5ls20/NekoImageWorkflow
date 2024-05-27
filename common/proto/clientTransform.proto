@@ -1,5 +1,5 @@
 syntax = "proto3";
-package protoFile;
+package proto;
 option go_package = "proto/clientTransform";
 
 enum ScraperType {
